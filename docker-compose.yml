@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:17.5-bookworm
+    container_name: ida_postgres
+    environment:
+      POSTGRES_DB: ida_datamart
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./sql:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ida_network
+
+  etl:
+    image: python:3.11.12-bookworm
+    container_name: ida_etl
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./src:/app
+      - ./requirements.txt:/app/requirements.txt
+      - ./dados_ida:/app/dados_ida
+    working_dir: /app
+    command: >
+      sh -c "pip install -r requirements.txt && python main.py"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ida_datamart
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+    networks:
+      - ida_network
+
+volumes:
+  postgres_data:
+
+networks:
+  ida_network:
+    driver: bridge
