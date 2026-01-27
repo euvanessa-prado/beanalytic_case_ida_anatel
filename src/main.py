@@ -18,6 +18,7 @@ from typing import Optional
 import pandas as pd
 from config import DB_CONFIG, DATA_DIR
 from ods_processor import ODSProcessor
+from transformer import IDATransformer
 from loader import DataLoader
 
 logging.basicConfig(
@@ -38,6 +39,7 @@ class ETLPipeline:
         db_config (dict): Configurações de conexão com banco
         data_dir (str): Diretório com arquivos ODS
         processor (ODSProcessor): Processador de arquivos ODS
+        transformer (IDATransformer): Transformador de métricas IDA
         loader (DataLoader): Carregador de dados no PostgreSQL
     
     Example:
@@ -56,32 +58,49 @@ class ETLPipeline:
         self.db_config = db_config
         self.data_dir = data_dir
         self.processor = ODSProcessor(data_dir)
+        self.transformer = IDATransformer()
         self.loader = DataLoader(db_config)
     
     def extrair_transformar(self) -> Optional[pd.DataFrame]:
         """
         Fase de extração e transformação (Extract & Transform).
         
-        Processa arquivos ODS do diretório, realizando leitura e
-        normalização dos dados.
+        Processa arquivos ODS do diretório, realizando leitura,
+        normalização e transformação em métricas de IDA.
         
         Returns:
             pd.DataFrame: DataFrame com dados processados, ou None se falhar
         """
         logger.info("="*80)
-        logger.info("FASE 1: EXTRAÇÃO E TRANSFORMAÇÃO")
+        logger.info("FASE 1: EXTRACAO E TRANSFORMACAO")
         logger.info("="*80)
         
+        # Extrair e normalizar
         logger.info(f"Processando arquivos ODS da pasta {self.data_dir}/...")
-        df = self.processor.processar_todos()
+        df_raw = self.processor.processar_todos()
         
-        if df is None or len(df) == 0:
+        if df_raw is None or len(df_raw) == 0:
             logger.error("Nenhum dado foi processado!")
             logger.info("Execute primeiro: python baixar_dinamico.py")
             return None
         
-        logger.info(f"Dados processados: {len(df)} registros")
-        return df
+        logger.info(f"Dados extraídos: {len(df_raw)} registros")
+        
+        # Transformar em métricas IDA
+        df_metricas = self.transformer.transformar(df_raw)
+        
+        if df_metricas is None or len(df_metricas) == 0:
+            logger.error("Nenhuma métrica foi gerada!")
+            return None
+        
+        logger.info(f"Métricas geradas: {len(df_metricas)} registros")
+        
+        # Preparar para carga
+        df_final = self.transformer.preparar_para_carga(df_metricas)
+        
+        logger.info(f"Dados prontos para carga: {len(df_final)} registros")
+        
+        return df_final
     
     def carregar(self, df: pd.DataFrame) -> bool:
         """

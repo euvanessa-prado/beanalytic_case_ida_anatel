@@ -226,25 +226,30 @@ class FactLoader:
         count = 0
         
         for _, row in df.iterrows():
-            # Buscar IDs das dimensões
-            id_tempo = self._buscar_id_tempo(row['ano_mes'])
-            id_grupo = self._buscar_id_grupo(row['grupo_economico'])
-            id_servico = self._buscar_id_servico(row['servico'])
-            id_regiao = self._buscar_id_regiao(row['uf'])
+            try:
+                # Buscar IDs das dimensões
+                id_tempo = self._buscar_id_tempo(row['ano_mes'])
+                id_grupo = self._buscar_id_grupo(row['grupo_economico'])
+                id_servico = self._buscar_id_servico(row['servico'])
+                
+                # Inserir fato (sem região, pois dados são nacionais)
+                self.cursor.execute("""
+                    INSERT INTO fato_ida (id_tempo, id_grupo, id_servico, id_regiao,
+                                         taxa_resolvidas_5dias, total_solicitacoes, solicitacoes_resolvidas)
+                    VALUES (%s, %s, %s, NULL, %s, %s, %s)
+                """, (id_tempo, id_grupo, id_servico,
+                      row['taxa_resolvidas_5dias'], row['total_solicitacoes'], row['solicitacoes_resolvidas']))
+                
+                count += 1
+                
+                if count % self.batch_size == 0:
+                    self.conn.commit()
+                    logger.info(f"Carregados {count} registros...")
             
-            # Inserir fato
-            self.cursor.execute("""
-                INSERT INTO fato_ida (id_tempo, id_grupo, id_servico, id_regiao, 
-                                     taxa_resolvidas_5dias, total_solicitacoes, solicitacoes_resolvidas)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
-            """, (id_tempo, id_grupo, id_servico, id_regiao,
-                  row['taxa_resolvidas_5dias'], row['total_solicitacoes'], row['solicitacoes_resolvidas']))
-            
-            count += 1
-            
-            if count % self.batch_size == 0:
-                self.conn.commit()
-                logger.info(f"Carregados {count} registros...")
+            except Exception as e:
+                logger.error(f"Erro ao carregar registro: {e}")
+                logger.error(f"Dados: {row.to_dict()}")
+                continue
         
         self.conn.commit()
         logger.info(f"Tabela fato carregada: {count} registros")
@@ -372,9 +377,11 @@ class DataLoader:
         """
         logger.info("Iniciando carga de dados...")
         
+        # Carregar dimensões
         self.load_tempo(df)
         self.load_grupos(df)
-        self.load_regioes(df)
+        
+        # Carregar fato
         self.load_fato(df)
         
         logger.info("Carga concluída com sucesso!")

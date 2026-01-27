@@ -329,7 +329,13 @@ class ODSProcessor:
             pd.DataFrame: DataFrame normalizado, ou None se houver erro
         """
         try:
-            logger.info(f"Processando: {Path(file_path).name}")
+            filename = Path(file_path).name
+            logger.info(f"Processando: {filename}")
+            
+            # Extrair tipo de serviço do nome do arquivo (SCM2015.ods -> SCM)
+            import re
+            match = re.match(r'(SCM|SMP|STFC)', filename)
+            servico = match.group(1) if match else 'DESCONHECIDO'
             
             df = pd.read_excel(file_path, engine='odf')
             logger.info(f"  Linhas: {len(df)}, Colunas: {len(df.columns)}")
@@ -337,6 +343,15 @@ class ODSProcessor:
             df_normalized = self.normalizer.normalizar(df)
             
             if df_normalized is not None and len(df_normalized) > 0:
+                # Adicionar coluna de serviço
+                df_normalized['servico'] = servico
+                
+                # Criar coluna ano_mes no formato YYYY-MM
+                df_normalized['ano_mes'] = df_normalized.apply(
+                    lambda row: f"{int(row['ano'])}-{int(row['mes']):02d}", 
+                    axis=1
+                )
+                
                 logger.info(f"  Normalizado: {len(df_normalized)} registros")
                 return df_normalized
             else:

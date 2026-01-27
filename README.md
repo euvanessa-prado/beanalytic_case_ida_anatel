@@ -2,7 +2,7 @@
 
 Pipeline ETL para extração, processamento e análise de dados do Índice de Desempenho no Atendimento (IDA) de operadoras de telecomunicações do portal ANATEL.
 
-## 📋 Descrição
+## Descrição
 
 Este projeto implementa um pipeline completo de ETL (Extract, Transform, Load) para:
 - Extrair arquivos ODS dinamicamente do portal dados.gov.br
@@ -10,7 +10,7 @@ Este projeto implementa um pipeline completo de ETL (Extract, Transform, Load) p
 - Carregar dados em Data Mart PostgreSQL
 - Gerar análises e visualizações
 
-## 🏗️ Arquitetura
+## Arquitetura
 
 ```
 projeto_beAnalytic_ida/
