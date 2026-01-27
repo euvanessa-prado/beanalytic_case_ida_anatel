@@ -118,7 +118,7 @@ class PortalExtractor:
         logger.info("="*80)
         
         with sync_playwright() as p:
-            logger.info("\n🌐 Abrindo navegador...")
+            logger.info("\nAbrindo navegador...")
             
             browser = p.chromium.launch(headless=False)
             context = browser.new_context()
@@ -126,7 +126,7 @@ class PortalExtractor:
             
             try:
                 # Acessar portal
-                logger.info(f"\n📄 Acessando: {self.url_portal}")
+                logger.info(f"\nAcessando: {self.url_portal}")
                 page.goto(self.url_portal, wait_until='domcontentloaded', timeout=60000)
                 time.sleep(5)
                 
@@ -135,15 +135,15 @@ class PortalExtractor:
                 
                 # Buscar títulos
                 titulos = page.locator('h4[data-v-444d5111]').all()
-                logger.info(f"✅ Encontrados {len(titulos)} títulos\n")
+                logger.info(f"Encontrados {len(titulos)} títulos\n")
                 
                 # Processar cada título
                 recursos = self._processar_titulos(titulos)
                 
-                logger.info(f"\n✅ Total de recursos identificados: {len(recursos)}")
+                logger.info(f"\nTotal de recursos identificados: {len(recursos)}")
                 
             except Exception as e:
-                logger.error(f"❌ Erro ao acessar portal: {e}")
+                logger.error(f"Erro ao acessar portal: {e}")
                 
             finally:
                 context.close()
@@ -158,15 +158,15 @@ class PortalExtractor:
         Args:
             page: Objeto Page do Playwright
         """
-        logger.info("\n📂 Expandindo 'Recursos'...")
+        logger.info("\nExpandindo 'Recursos'...")
         try:
             recursos_btn = page.locator('button:has-text("Recursos")').first
             if recursos_btn.count() > 0:
                 recursos_btn.click()
                 time.sleep(3)
-                logger.info("✅ Recursos expandido")
+                logger.info("Recursos expandido")
         except:
-            logger.info("ℹ️ Recursos já expandido")
+            logger.info("Recursos já expandido")
     
     def _processar_titulos(self, titulos) -> List[RecursoPortal]:
         """
@@ -180,7 +180,7 @@ class PortalExtractor:
         """
         recursos = []
         
-        logger.info("\n🔍 Processando títulos dos recursos...")
+        logger.info("\nProcessando títulos dos recursos...")
         
         for i, titulo_elem in enumerate(titulos, 1):
             try:
@@ -197,12 +197,12 @@ class PortalExtractor:
                         filename=f"{servico}{ano}.ods"
                     )
                     recursos.append(recurso)
-                    logger.info(f"    → {recurso.filename}")
+                    logger.info(f"    -> {recurso.filename}")
                 else:
-                    logger.warning(f"    ⚠️ Não conseguiu extrair info")
+                    logger.warning(f"    Nao conseguiu extrair info")
                 
             except Exception as e:
-                logger.error(f"    ❌ Erro: {e}")
+                logger.error(f"    Erro: {e}")
                 continue
         
         return recursos
@@ -250,7 +250,7 @@ class ODSDownloader:
         try:
             url = f"{self.base_url}{recurso.filename}"
             
-            logger.info(f"   📥 Baixando: {recurso.filename}")
+            logger.info(f"   Baixando: {recurso.filename}")
             logger.info(f"      URL: {url}")
             
             response = requests.get(url, timeout=30)
@@ -258,7 +258,7 @@ class ODSDownloader:
             
             # Validar formato ODS
             if not self._validar_ods(response.content):
-                logger.warning(f"   ⚠️ Não é ODS válido")
+                logger.warning(f"   Nao e ODS valido")
                 return None
             
             # Salvar arquivo
@@ -266,12 +266,12 @@ class ODSDownloader:
             self._salvar_arquivo(filepath, response.content)
             
             size_mb = len(response.content) / (1024 * 1024)
-            logger.info(f"   ✅ Salvo: {recurso.filename} ({size_mb:.2f} MB)")
+            logger.info(f"   Salvo: {recurso.filename} ({size_mb:.2f} MB)")
             
             return recurso.filename
             
         except Exception as e:
-            logger.error(f"   ❌ Erro: {str(e)[:50]}")
+            logger.error(f"   Erro: {str(e)[:50]}")
             return None
     
     def _validar_ods(self, content: bytes) -> bool:
@@ -336,7 +336,7 @@ class AnatelScraper:
         recursos = self.extractor.extrair_recursos()
         
         if not recursos:
-            logger.error("\n❌ Nenhum recurso foi identificado!")
+            logger.error("\nNenhum recurso foi identificado!")
             return []
         
         # Baixar arquivos
@@ -359,7 +359,7 @@ class AnatelScraper:
         
         # Resultado
         logger.info("\n" + "="*80)
-        logger.info(f"✅ DOWNLOAD CONCLUÍDO!")
+        logger.info(f"DOWNLOAD CONCLUIDO!")
         logger.info(f"   Arquivos baixados: {len(arquivos_baixados)}/{len(recursos)}")
         logger.info("="*80)
         
@@ -389,15 +389,15 @@ if __name__ == '__main__':
     
     print("\n" + "="*80)
     if arquivos:
-        print(f"✅ SUCESSO! {len(arquivos)} ARQUIVOS BAIXADOS")
+        print(f"SUCESSO! {len(arquivos)} ARQUIVOS BAIXADOS")
         print("="*80)
-        print("\n📁 Arquivos baixados:\n")
+        print("\nArquivos baixados:\n")
         for i, arq in enumerate(sorted(arquivos), 1):
             print(f"  {i:2d}. {arq}")
-        print(f"\n📂 Pasta: dados_ida/")
-        print("\n💡 Próximos passos:")
+        print(f"\nPasta: dados_ida/")
+        print("\nProximos passos:")
         print("   1. python processar_ods.py")
         print("   2. python src/main.py")
     else:
-        print("❌ NENHUM ARQUIVO FOI BAIXADO")
+        print("NENHUM ARQUIVO FOI BAIXADO")
     print("="*80 + "\n")

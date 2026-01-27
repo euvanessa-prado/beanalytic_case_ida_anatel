@@ -44,7 +44,7 @@ class DataAnalyzer:
     
     def exibir_resumo(self) -> None:
         """Exibe resumo geral dos dados."""
-        print(f"\n✅ Dados processados com sucesso!")
+        print(f"\nDados processados com sucesso!")
         print(f"   Total de registros: {len(self.df)}")
         print(f"   Colunas: {list(self.df.columns)}")
     
@@ -130,7 +130,7 @@ class ProcessadorODSCLI:
         df = self.processor.processar_todos()
         
         if df is None or len(df) == 0:
-            print("❌ Nenhum dado foi processado")
+            print("Nenhum dado foi processado")
             return None
         
         # Analisar dados
@@ -150,9 +150,9 @@ class ProcessadorODSCLI:
     def _exibir_rodape(self) -> None:
         """Exibe rodapé com próximos passos."""
         print("\n" + "="*80)
-        print("PROCESSAMENTO CONCLUÍDO!")
+        print("PROCESSAMENTO CONCLUIDO!")
         print("="*80)
-        print("\n💡 Próximo passo:")
+        print("\nProximo passo:")
         print("   python src/main.py  (carregar no PostgreSQL)")
         print("="*80 + "\n")
 

@@ -337,10 +337,10 @@ class ODSProcessor:
             df_normalized = self.normalizer.normalizar(df)
             
             if df_normalized is not None and len(df_normalized) > 0:
-                logger.info(f"  ✅ Normalizado: {len(df_normalized)} registros")
+                logger.info(f"  Normalizado: {len(df_normalized)} registros")
                 return df_normalized
             else:
-                logger.warning(f"  ⚠️ Nenhum dado normalizado")
+                logger.warning(f"  Nenhum dado normalizado")
                 return None
             
         except Exception as e:
