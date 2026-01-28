@@ -9,8 +9,9 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./sql:/docker-entrypoint-initdb.d
+      - postgres-data:/var/lib/postgresql/data
+      - ./sql/00_init_completo.sql:/docker-entrypoint-initdb.d/00_init_completo.sql
+      - ./sql:/sql
     ports:
       - "5432:5432"
     healthcheck:
@@ -21,30 +22,55 @@ services:
     networks:
       - ida_network
 
-  etl:
+  # Container para carregar dados automaticamente
+  data_loader:
     image: python:3.11.12-bookworm
-    container_name: ida_etl
+    container_name: ida_data_loader
     depends_on:
       postgres:
         condition: service_healthy
-    volumes:
-      - ./src:/app
-      - ./requirements.txt:/app/requirements.txt
-      - ./dados_ida:/app/dados_ida
-    working_dir: /app
-    command: >
-      sh -c "pip install -r requirements.txt && python main.py"
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
       DB_NAME: ida_datamart
       DB_USER: postgres
       DB_PASSWORD: postgres
+      DATA_DIR: dados_ida
+      PGPASSWORD: postgres
+    volumes:
+      - ./src:/app/src
+      - ./dados_ida:/app/dados_ida
+      - ./requirements.txt:/app/requirements.txt
+      - ./carregar_dados.py:/app/carregar_dados.py
+      - ./sql:/app/sql
+    working_dir: /app
+    command: >
+      bash -c "
+        echo '============================================================';
+        echo 'AGUARDANDO POSTGRES ESTAR PRONTO...';
+        echo '============================================================';
+        sleep 10;
+        echo 'Instalando dependencias Python e PostgreSQL client...';
+        apt-get update -qq && apt-get install -y -qq postgresql-client > /dev/null 2>&1;
+        pip install -q -r requirements.txt;
+        echo '============================================================';
+        echo 'EXECUTANDO CARGA DE DADOS...';
+        echo '============================================================';
+        python carregar_dados.py;
+        echo '============================================================';
+        echo 'EXECUTANDO TRANSFORMACOES SQL...';
+        echo '============================================================';
+        psql -h postgres -U postgres -d ida_datamart -f /app/sql/06_transform_load.sql;
+        echo '============================================================';
+        echo 'CARGA CONCLUIDA! Container sera encerrado.';
+        echo '============================================================';
+      "
     networks:
       - ida_network
+    restart: "no"
 
 volumes:
-  postgres_data:
+  postgres-data:
 
 networks:
   ida_network:
