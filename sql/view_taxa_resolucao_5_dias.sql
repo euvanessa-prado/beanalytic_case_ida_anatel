@@ -1,7 +1,8 @@
 -- ============================================================================
--- Camada Analítica · View de Variação Mensal (Pivotada por Operadora)
+-- Camada Analítica · View de Variação Mensal (Taxa de Resolução 5 Dias)
 -- Objetivo: comparar a variação percentual do **mercado** com a variação
--- percentual **individual** de cada operadora e expor o delta entre elas.
+-- percentual **individual** de cada operadora para a métrica de resolução
+-- em 5 dias úteis.
 --
 -- Regras do cálculo (por mês):
 -- 1) Variação do Mercado (%):
@@ -38,8 +39,8 @@ BEGIN
         ORDER BY 1
     ) sub;
 
-    v_sql := 'DROP VIEW IF EXISTS vw_taxa_variacao_pivotada CASCADE; ' ||
-             'CREATE VIEW vw_taxa_variacao_pivotada AS
+    v_sql := 'DROP VIEW IF EXISTS view_taxa_resolucao_5_dias CASCADE; ' ||
+             'CREATE VIEW view_taxa_resolucao_5_dias AS
     WITH Metricas_Grupadas AS (
         SELECT 
             dt.id_tempo, dt.ano_mes,
@@ -74,17 +75,17 @@ BEGIN
         JOIN Metricas_Grupadas g ON m.id_tempo = g.id_tempo
     )
     SELECT 
-        ano_mes as \"Mes\",
-        COALESCE(ROUND(AVG(var_mercado)::numeric, 1), 0) as \"Taxa de Variação Média\",' || CHR(10) ||
+        ano_mes as "Mes",
+        COALESCE(ROUND(AVG(var_mercado)::numeric, 1), 0) as "Taxa de Variação Média", ' || CHR(10) ||
         v_columns || CHR(10) ||
     'FROM (
         SELECT ano_mes, var_mercado, grupo_base, (var_mercado - var_individual) as diferenca 
         FROM Deltas 
         WHERE var_mercado IS NOT NULL
     ) final
-    GROUP BY ano_mes ORDER BY \"Mes\";';
+    GROUP BY ano_mes ORDER BY "Mes";';
 
     EXECUTE v_sql;
 END $$;
 
-COMMENT ON VIEW vw_taxa_variacao_pivotada IS 'Visão pivotada comparando delta de variação entre mercado e operadoras.';
+COMMENT ON VIEW view_taxa_resolucao_5_dias IS 'Visão Analítica Ouro: Tabela dinâmica pivotada que compara a variação percentual mensal da Taxa de Resolução em 5 dias (benchmark vs operadora).';

@@ -7,4 +7,4 @@ echo
 echo "Contagens:"
 docker compose exec -T postgres psql -U postgres -d ida_datamart -c "SELECT COUNT(*) AS staging_rows FROM ida.staging_ida;"
 docker compose exec -T postgres psql -U postgres -d ida_datamart -c "SELECT COUNT(*) AS fato_rows FROM ida.fato_ida;"
-docker compose exec -T postgres psql -U postgres -d ida_datamart -c "SELECT COUNT(*) AS view_rows FROM ida.vw_taxa_variacao_pivotada;"
+docker compose exec -T postgres psql -U postgres -d ida_datamart -c "SELECT COUNT(*) AS view_rows FROM ida.view_taxa_resolucao_5_dias;"

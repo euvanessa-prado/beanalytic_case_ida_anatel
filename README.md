@@ -43,12 +43,22 @@ A solução é totalmente conteinerizada via Docker. Siga os passos abaixo:
 1. **Pré-requisitos**:
    - Docker e Docker Compose instalados.
 
-2. **Subir tudo (um comando)**:
-   ```bash
-   docker compose up -d
-   ```
-   - Na primeira execução, o Compose constrói as imagens automaticamente.
-   - Após remover volumes (reset), os dados são recarregados pelo ETL.
+2.46→2. **Subir tudo (um comando)**:
+47→   ```bash
+48→   docker compose up -d --build
+49→   ```
+50→   - O parâmetro `--build` garante que qualquer alteração recente no código seja incorporada à imagem.
+51→   - Após remover volumes (reset), os dados são recarregados automaticamente pelo ETL.
+
+2.1. **Acesso e Credenciais**:
+   - **Dashboard**: [http://localhost:8501](http://localhost:8501)
+   - **Banco de Dados (PostgreSQL)**:
+     - **Host**: `localhost` (porta 5432)
+     - **Database**: `ida_datamart`
+     - **User**: `postgres`
+     - **Password**: `postgres`
+   
+   > **Nota para o Avaliador:** As credenciais são padrão (`postgres`/`postgres`) para facilitar a execução local do teste técnico. Em produção, utilizaríamos variáveis de ambiente seguras (Secrets).
 
 3. **Fluxo Automático**:
    - O banco PostgreSQL é inicializado com o schema base.
@@ -56,7 +66,7 @@ A solução é totalmente conteinerizada via Docker. Siga os passos abaixo:
    - Inicia o processamento dos arquivos presentes em `dados_ida/`.
    - Executa as transformações SQL para carga da Fato e criação das Views:
      - [01_transform_load.sql](file:///home/vanessa-aws/projeto_beAnalytic_copia/sql/01_transform_load.sql)
-     - [02_view_pivotada.sql](file:///home/vanessa-aws/projeto_beAnalytic_copia/sql/02_view_pivotada.sql)
+    - [view_taxa_resolucao_5_dias.sql](file:///home/vanessa-aws/projeto_beAnalytic_copia/sql/view_taxa_resolucao_5_dias.sql)
 
 4. **Ver logs rapidamente**:
    ```bash
@@ -94,22 +104,22 @@ A solução é totalmente conteinerizada via Docker. Siga os passos abaixo:
 2. Transformação e carga para o modelo estrela:
    - [01_transform_load.sql](file:///home/vanessa-aws/projeto_beAnalytic_copia/sql/01_transform_load.sql)
 3. Camada analítica (view com variação e pivô):
-   - [02_view_pivotada.sql](file:///home/vanessa-aws/projeto_beAnalytic_copia/sql/02_view_pivotada.sql)
+   - [view_taxa_resolucao_5_dias.sql](file:///home/vanessa-aws/projeto_beAnalytic_copia/sql/view_taxa_resolucao_5_dias.sql)
 4. Orquestração e chamada dos scripts (Python):
-   - [carregar_dados.py](file:///home/vanessa-aws/projeto_beAnalytic_copia/carregar_dados.py#L42-L99)
+   - [carregar_dados_no_postgres.py](file:///home/vanessa-aws/projeto_beAnalytic_copia/carregar_dados_no_postgres.py#L42-L99)
 
 ## 🧭 Passo a Passo do ETL
 - Ler ODS de `dados_ida/` e normalizar para long-format: [ods_processor.py](file:///home/vanessa-aws/projeto_beAnalytic_copia/src/ods_processor.py)
 - Carregar em lote para `ida.staging_ida`: [staging_loader.py](file:///home/vanessa-aws/projeto_beAnalytic_copia/src/staging_loader.py)
 - Consolidar dimensões e fato: [01_transform_load.sql](file:///home/vanessa-aws/projeto_beAnalytic_copia/sql/01_transform_load.sql)
-- Construir view de variação pivoteada: [02_view_pivotada.sql](file:///home/vanessa-aws/projeto_beAnalytic_copia/sql/02_view_pivotada.sql)
+- Construir view de variação pivoteada: [view_taxa_resolucao_5_dias.sql](file:///home/vanessa-aws/projeto_beAnalytic_copia/sql/view_taxa_resolucao_5_dias.sql)
 - Exibir no dashboard (tema escuro, filtros na lateral, KPIs dinâmicos): [dashboard.py](file:///home/vanessa-aws/projeto_beAnalytic_copia/src/dashboard.py)
 
 ## 🧪 Validações Úteis
 - Contagens rápidas (após carga):
   ```bash
   docker compose exec postgres psql -U postgres -d ida_datamart -c "SELECT COUNT(*) FROM ida.fato_ida;"
-  docker compose exec postgres psql -U postgres -d ida_datamart -c "SELECT COUNT(*) FROM ida.vw_taxa_variacao_pivotada;"
+  docker compose exec postgres psql -U postgres -d ida_datamart -c "SELECT COUNT(*) FROM ida.view_taxa_resolucao_5_dias;"
   ```
 
 ## 🛠️ Troubleshooting

@@ -17,4 +17,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Inicia o orquestrador
-CMD ["python", "carregar_dados.py"]
+CMD ["python", "carregar_dados_no_postgres.py"]

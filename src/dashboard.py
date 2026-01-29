@@ -101,7 +101,7 @@ def load_data():
         conn = psycopg2.connect(**DB_CONFIG, options='-c search_path=ida,public')
         
         df = None
-        for v in ["vw_taxa_variacao_pivotada", "pivot_variacao"]:
+        for v in ["view_taxa_resolucao_5_dias", "pivot_variacao"]:
             try:
                 df = pd.read_sql(f"SELECT * FROM {v} ORDER BY 1", conn)
                 if not df.empty or df is not None:
@@ -276,7 +276,7 @@ with st.sidebar:
     
     - Tabela base: `fato_ida` unida às dimensões (`dim_tempo`, `dim_grupo_economico`, `dim_servico`).
     - Série histórica no gráfico: campo `taxa_solicitacoes_resolvidas_5dias` (renomeado para `ida`).
-    - Comparativo (Δ vs mercado): view `vw_taxa_variacao_pivotada` com pivot por operadora.
+    - Comparativo (Δ vs mercado): view `view_taxa_resolucao_5_dias` com pivot por operadora.
     """)
 
 # Header Principal
@@ -629,7 +629,7 @@ with tab_sobre:
         - Mercado (%): média mensal do IDA entre operadoras (benchmark).
         - Variação (%): diferença percentual mês-a-mês contra o mês anterior.
         - Delta (Individual − Mercado): leitura positiva indica desempenho superior ao benchmark.
-        - View analítica: **vw_taxa_variacao_pivotada** e alternativa dbt **pivot_variacao**.
+        - View analítica: **view_taxa_resolucao_5_dias** e alternativa dbt **pivot_variacao**.
         - Tratamentos: remoção de outliers (> |200%|), limpeza e padronização de nomes de grupos.
         """)
 
