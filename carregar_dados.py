@@ -1,208 +1,107 @@
-"""
-Script simples para carregar dados dos arquivos ODS no PostgreSQL.
+"""ETL Orchestrator for the Anatel IDA Data Mart.
 
-Este script:
-1. Processa os arquivos ODS da pasta dados_ida/
-2. Carrega os dados brutos na tabela staging
-3. Executa as transformacoes SQL para popular o Data Mart
-
-Uso:
-    python carregar_dados.py
+Coordinates schema initialization, ODS ingestion, normalization and
+analytical transformations, producing dimensional tables and views.
 """
 
 import sys
 import time
 import logging
-import subprocess
+import psycopg2
+import re
+import pandas as pd
+from pathlib import Path
+from src.ods_processor import DataNormalizer
+from src.staging_loader import StagingManager
+from src.config import DB_CONFIG, DATA_DIR
 
-# Adicionar src ao path
-sys.path.insert(0, 'src')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s]: %(message)s')
+logger = logging.getLogger("Pipeline")
 
-from ods_processor import ODSProcessor
-from staging_loader import StagingLoader
-from config import DB_CONFIG, DATA_DIR
+class ETLPipeline:
+    """End-to-end ETL pipeline for the IDA dataset."""
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
-
-
-def aguardar_postgres():
-    """Aguarda o PostgreSQL estar pronto."""
-    logger.info("Aguardando PostgreSQL iniciar...")
-    max_tentativas = 30
-    
-    for i in range(max_tentativas):
-        try:
-            import psycopg2
-            conn = psycopg2.connect(**DB_CONFIG)
-            conn.close()
-            logger.info("PostgreSQL esta pronto!")
-            return True
-        except Exception:
-            if i < max_tentativas - 1:
+    def __init__(self):
+        """Initialize pipeline with SQL directory path."""
+        self.sql_path = Path(__file__).parent / "sql"
+        
+    def _wait_for_db(self) -> bool:
+        """Wait for database readiness (healthcheck) up to ~30s."""
+        for _ in range(15):
+            try:
+                with psycopg2.connect(**DB_CONFIG) as conn:
+                    return True
+            except:
                 time.sleep(2)
-            else:
-                logger.error("PostgreSQL nao iniciou a tempo")
-                return False
-    
-    return False
-
-
-def processar_ods():
-    """Processa arquivos ODS e retorna DataFrame."""
-    logger.info("="*80)
-    logger.info("PASSO 1: PROCESSAR ARQUIVOS ODS")
-    logger.info("="*80)
-    
-    processor = ODSProcessor(DATA_DIR)
-    df = processor.processar_todos()
-    
-    if df is None or len(df) == 0:
-        logger.error("Nenhum dado foi processado!")
-        logger.error("Verifique se existem arquivos ODS em dados_ida/")
-        return None
-    
-    logger.info(f"Total de registros processados: {len(df)}")
-    return df
-
-
-def carregar_staging(df):
-    """Carrega dados na tabela staging."""
-    logger.info("\n" + "="*80)
-    logger.info("PASSO 2: CARREGAR DADOS NA STAGING")
-    logger.info("="*80)
-    
-    loader = StagingLoader(DB_CONFIG)
-    loader.connect()
-    
-    try:
-        count = loader.load_to_staging(df, truncate=True)
-        logger.info(f"Dados carregados na staging: {count} registros")
-        
-        # Verificar
-        staging_count = loader.get_staging_count()
-        logger.info(f"Total na staging: {staging_count} registros")
-        
-        return count > 0
-    finally:
-        loader.close()
-
-
-def executar_transformacoes():
-    """Executa script SQL de transformacoes."""
-    logger.info("\n" + "="*80)
-    logger.info("PASSO 3: TRANSFORMACOES SQL")
-    logger.info("="*80)
-    logger.info("As transformacoes SQL serao executadas pelo container...")
-    return True
-
-
-def verificar_dados():
-    """Verifica dados carregados no Data Mart."""
-    logger.info("\n" + "="*80)
-    logger.info("PASSO 4: VERIFICAR DADOS CARREGADOS")
-    logger.info("="*80)
-    
-    import psycopg2
-    
-    conn = psycopg2.connect(**DB_CONFIG)
-    cursor = conn.cursor()
-    cursor.execute("SET search_path TO ida, public")
-    
-    try:
-        # Contar registros
-        cursor.execute("SELECT COUNT(*) FROM staging_ida")
-        count_staging = cursor.fetchone()[0]
-        
-        cursor.execute("SELECT COUNT(*) FROM dim_tempo")
-        count_tempo = cursor.fetchone()[0]
-        
-        cursor.execute("SELECT COUNT(*) FROM dim_grupo_economico")
-        count_grupos = cursor.fetchone()[0]
-        
-        cursor.execute("SELECT COUNT(*) FROM fato_ida")
-        count_fato = cursor.fetchone()[0]
-        
-        logger.info(f"Staging: {count_staging} registros")
-        logger.info(f"Dimensao Tempo: {count_tempo} registros")
-        logger.info(f"Dimensao Grupos: {count_grupos} registros")
-        logger.info(f"Fato IDA: {count_fato} registros")
-        
-        if count_fato > 0:
-            logger.info("\nPrimeiros registros da fato_ida:")
-            cursor.execute("""
-                SELECT 
-                    dt.ano_mes,
-                    dg.nome_grupo,
-                    ds.codigo_servico,
-                    f.taxa_resolvidas_5dias,
-                    f.total_solicitacoes
-                FROM fato_ida f
-                JOIN dim_tempo dt ON f.id_tempo = dt.id_tempo
-                JOIN dim_grupo_economico dg ON f.id_grupo = dg.id_grupo
-                JOIN dim_servico ds ON f.id_servico = ds.id_servico
-                LIMIT 5
-            """)
-            
-            for row in cursor.fetchall():
-                logger.info(f"  {row[0]} | {row[1]} | {row[2]} | Taxa: {row[3]}% | Solicitacoes: {row[4]}")
-        
-    finally:
-        cursor.close()
-        conn.close()
-
-
-def main():
-    """Funcao principal."""
-    logger.info("="*80)
-    logger.info("CARREGAR DADOS NO DATA MART IDA")
-    logger.info("="*80)
-    
-    try:
-        # Aguardar PostgreSQL
-        if not aguardar_postgres():
-            return False
-        
-        # Processar ODS
-        df = processar_ods()
-        if df is None:
-            return False
-        
-        # Carregar staging
-        if not carregar_staging(df):
-            return False
-        
-        # Executar transformacoes
-        if not executar_transformacoes():
-            return False
-        
-        # Verificar dados
-        verificar_dados()
-        
-        logger.info("\n" + "="*80)
-        logger.info("CARGA CONCLUIDA COM SUCESSO!")
-        logger.info("="*80)
-        logger.info("")
-        logger.info("Acesse o PostgreSQL:")
-        logger.info("  docker exec -it ida_postgres psql -U postgres -d ida_datamart")
-        logger.info("")
-        logger.info("Consultas uteis:")
-        logger.info("  SELECT * FROM ida.fato_ida LIMIT 10;")
-        logger.info("  SELECT * FROM ida.vw_taxa_variacao_mensal LIMIT 10;")
-        logger.info("="*80)
-        
-        return True
-        
-    except Exception as e:
-        logger.error(f"Erro no processo: {e}")
-        import traceback
-        traceback.print_exc()
         return False
 
+    def _execute_sql_file(self, filename: str):
+        """Execute a SQL script file against Postgres in ida/public.
+        
+        Args:
+            filename: File name relative to the sql directory.
+        """
+        path = self.sql_path / filename
+        with psycopg2.connect(**DB_CONFIG, options='-c search_path=ida,public') as conn:
+            with conn.cursor() as cur:
+                cur.execute(path.read_text())
+            conn.commit()
 
-if __name__ == '__main__':
-    sucesso = main()
-    sys.exit(0 if sucesso else 1)
+    def run(self):
+        """Run the full pipeline: DDL → Staging → Transform → Views."""
+        if not self._wait_for_db():
+            logger.error("Database connection timeout.")
+            sys.exit(1)
+
+        try:
+            # 1. Initialize schema
+            self._execute_sql_file("00_init_completo.sql")
+
+            # 2. Sequential file ingestion
+            files = list(Path(DATA_DIR).glob('*.ods'))
+            if not files:
+                logger.warning("No .ods files found.")
+                return
+
+            loader = StagingManager(DB_CONFIG)
+            
+            # Pure reset of staging area
+            with psycopg2.connect(**DB_CONFIG, options='-c search_path=ida,public') as conn:
+                with conn.cursor() as cur:
+                    cur.execute("TRUNCATE TABLE staging_ida RESTART IDENTITY")
+                conn.commit()
+
+            total_records = 0
+            for f in files:
+                logger.info(f"Ingesting: {f.name}")
+                
+                # Metadata extraction
+                svc = re.sub(r'\d+', '', f.stem).upper()
+                yr_match = re.search(r'\d{4}', f.stem)
+                yr = int(yr_match.group()) if yr_match else None
+                
+                # Load and normalize
+                df = DataNormalizer(target_year=yr).normalize(pd.read_excel(f, engine='odf'))
+                
+                if not df.empty:
+                    # Quality control
+                    df = df[df['valor'] >= 0]
+                    df['servico'] = svc
+                    df['arquivo_origem'] = f.name
+                    df['ano_mes'] = df.apply(lambda r: f"{int(r.ano)}-{int(r.mes):02d}", axis=1)
+                    
+                    loader.bulk_load(df, truncate=False)
+                    total_records += len(df)
+
+            # 3. Final transformations
+            if total_records > 0:
+                self._execute_sql_file("01_transform_load.sql")
+                self._execute_sql_file("02_view_pivotada.sql")
+                logger.info(f"ETL completed successfully. Records processed: {total_records}")
+            
+        except Exception:
+            logger.exception("Pipeline execution failed.")
+            sys.exit(1)
+
+if __name__ == "__main__":
+    ETLPipeline().run()
