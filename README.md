@@ -10,18 +10,60 @@ Este projeto implementa uma solução de Engenharia de Dados ponta a ponta para 
 - Frontend: Streamlit
 - Visualização: Plotly
 - Bibliotecas Python:
-  - pandas, odfpy (leitura/transformação ODS)
+  - **polars** (processamento de dados de alta performance)
+  - pandas, odfpy (leitura de ODS)
   - psycopg2-binary (PostgreSQL)
-  - python-dotenv (configuração via ambiente)
-  - requests, Playwright (extração opcional)
-  - Pillow (tratamento de imagem)
-  - matplotlib (apoio visual, opcional)
+  - python-dotenv (configuração)
+  - plotly (visualização de dados)
+  - streamlit (interface web)
+  - requests (requisições HTTP)
 
 ## Arquitetura da Solução
 
-### 1. Camada de Ingestão (Python)
-- **ODS Processor**: Motor em Python que utiliza `pandas` e `odfpy` para ler planilhas brutas.
-- **Normalização**: Implementação de lógica robusta para converter tabelas dinâmicas (wide format) em dados normalizados (long format), tratando inconsistências de cabeçalhos e períodos.
+```mermaid
+graph TD
+    %% Styles
+    classDef source fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
+    classDef process fill:#fff9c4,stroke:#fbc02d,stroke-width:2px;
+    classDef db fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px;
+    classDef viz fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px;
+
+    %% Source
+    subgraph Origem ["📂 Origem"]
+        ODS[("📄 Arquivos .ods<br/>(dados_ida/)")]:::source
+    end
+
+    %% Ingestion Layer
+    subgraph Ingestao ["⚙️ Camada de Ingestão (Python)"]
+        Processor["🐍 ODS Processor<br/>(Pandas/Polars)"]:::process
+        Loader["🚚 Bulk Loader<br/>(psycopg2)"]:::process
+    end
+
+    %% Data Layer
+    subgraph Dados ["🗄️ Camada de Dados (PostgreSQL)"]
+        Staging[("📥 Staging Area<br/>(Tabelas Brutas)")]:::db
+        StarSchema[("⭐ Star Schema<br/>(Dimensões & Fatos)")]:::db
+        Views[("📊 Views Analíticas<br/>(KPIs & Pivots)")]:::db
+    end
+
+    %% Analytics Layer
+    subgraph Analitico ["📈 Camada Analítica"]
+        Streamlit["🖥️ Streamlit Dashboard<br/>(Visualização Interativa)"]:::viz
+    end
+
+    %% Relationships
+    ODS --> Processor
+    Processor --> Loader
+    Loader --> Staging
+    Staging -->|SQL Transform| StarSchema
+    StarSchema -->|SQL Logic| Views
+    Views -->|Query| Streamlit
+```
+
+### 1. Camada de Ingestão (Python + Polars)
+- **ODS Processor**: Motor modernizado que utiliza `pandas`/`odfpy` para leitura inicial e **Polars** para transformação massiva.
+- **Parquet Cache**: Implementação de cache local em formato **Parquet** para acelerar reprocessamentos.
+- **Normalização**: Conversão eficiente de tabelas wide para long format usando a engine Rust do Polars.
 - **Bulk Loading**: Persistência otimizada na Staging via `psycopg2.extras.execute_values`.
 
 ### 2. Camada de Dados (PostgreSQL)
