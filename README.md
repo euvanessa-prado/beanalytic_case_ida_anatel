@@ -46,6 +46,7 @@ A solução é totalmente conteinerizada via Docker. Siga os passos abaixo:
    - O banco PostgreSQL é inicializado com o schema base.
    - O container `data_loader` aguarda o banco estar `healthy`.
    - Inicia o processamento dos arquivos presentes em `dados_ida/`.
+   - Os arquivos `.ods` são baixados via script Python e carregados automaticamente no PostgreSQL (camada de staging).
    - Executa as transformações SQL para carga da Fato e criação das Views:
      - [01_transform_load.sql](sql/01_transform_load.sql)
     - [view_taxa_resolucao_5_dias.sql](sql/view_taxa_resolucao_5_dias.sql)
@@ -61,27 +62,6 @@ A solução é totalmente conteinerizada via Docker. Siga os passos abaixo:
    docker compose down -v && docker compose up -d
    ```
    - O ETL recria o Data Mart automaticamente.
-
-### Baixar e Carregar Arquivos (.ods)
-- Onde colocar: adicione os arquivos `.ods` na pasta [`dados_ida/`](file:///home/vanessa-aws/projeto_beAnalytic_copia/dados_ida).
-- Como atualizar os dados:
-  - Copie os novos `.ods` para `dados_ida/`.
-  - Reinicie o ETL para reprocessar:
-    ```bash
-    docker compose restart data_loader
-    ```
-  - Alternativa (reprocesso completo, recria banco e view):
-    ```bash
-    docker compose down -v && docker compose up -d --build
-    ```
-- Verificar progresso do ETL:
-  ```bash
-  docker compose logs -f data_loader
-  ```
-- Execução manual (opcional):
-  ```bash
-  docker compose exec data_loader python carregar_dados_no_postgres.py
-  ```
 
 ### Evidência de Execução
 - ETL concluído com sucesso:
