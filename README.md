@@ -47,6 +47,10 @@ A solução é totalmente conteinerizada via Docker. Siga os passos abaixo:
    - O container `data_loader` aguarda o banco estar `healthy`.
    - Inicia o processamento dos arquivos presentes em `dados_ida/`.
    - Os arquivos `.ods` são baixados via script Python e carregados automaticamente no PostgreSQL (camada de staging).
+   - Script de extração: [baixar_arquivos_anatel.py](baixar_arquivos_anatel.py). Execução manual opcional:
+     ```bash
+     python baixar_arquivos_anatel.py
+     ```
    - Executa as transformações SQL para carga da Fato e criação das Views:
      - [01_transform_load.sql](sql/01_transform_load.sql)
     - [view_taxa_resolucao_5_dias.sql](sql/view_taxa_resolucao_5_dias.sql)
