@@ -106,12 +106,19 @@ A solução é totalmente conteinerizada via Docker. Siga os passos abaixo:
    - Após remover volumes (reset), os dados são recarregados automaticamente pelo ETL.
 
 3. **Acesso e Credenciais**:
-   - **Dashboard**: [http://localhost:8501](http://localhost:8501)
+   - **Dashboard (Streamlit)**: [http://localhost:8501](http://localhost:8501)
    - **Banco de Dados (PostgreSQL)**:
      - **Host**: `localhost` (porta 5432)
      - **Database**: `ida_datamart`
      - **User**: `postgres`
      - **Password**: `postgres`
+   - **Administração (PgAdmin)**:
+     - **Link**: [http://localhost:5050](http://localhost:5050)
+     - **Email**: `admin@admin.com`
+     - **Senha**: `admin`
+     - *Dica: Para conectar ao banco no PgAdmin, use o host `postgres` (nome do container).*
+   - **Conexão Externa (DBeaver/PowerBI)**:
+     - Utilize as mesmas credenciais do PostgreSQL acima. O host é `localhost` pois a porta 5432 está exposta.
    
    > **Nota para o Avaliador:** As credenciais são padrão (`postgres`/`postgres`) para facilitar a execução local do teste técnico. Em produção, utilizaríamos variáveis de ambiente seguras (Secrets).
 

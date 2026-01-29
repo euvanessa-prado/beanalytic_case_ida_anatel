@@ -57,6 +57,20 @@ services:
     networks:
       - ida_network
 
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: ida_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@admin.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+    ports:
+      - "5050:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ida_network
+
   dbt:
     image: ghcr.io/dbt-labs/dbt-postgres:1.7.3
     container_name: ida_dbt

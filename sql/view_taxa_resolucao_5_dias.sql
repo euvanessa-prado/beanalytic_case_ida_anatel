@@ -61,22 +61,22 @@ BEGIN
             m.ano_mes, g.grupo_base,
             -- Cálculo de Variação (Market Benchmark)
             CASE 
-                WHEN LAG(m.valor_mercado) OVER (PARTITION BY g.grupo_base ORDER BY m.ano_mes) > 0
-                THEN ((m.valor_mercado - LAG(m.valor_mercado) OVER (PARTITION BY g.grupo_base ORDER BY m.ano_mes)) 
-                      / LAG(m.valor_mercado) OVER (PARTITION BY g.grupo_base ORDER BY m.ano_mes)) * 100
+                WHEN LAG(m.valor_mercado) OVER (ORDER BY m.id_tempo) > 0
+                THEN ((m.valor_mercado - LAG(m.valor_mercado) OVER (ORDER BY m.id_tempo)) 
+                      / LAG(m.valor_mercado) OVER (ORDER BY m.id_tempo)) * 100
             END as var_mercado,
             -- Cálculo de Variação (Individual)
             CASE 
-                WHEN LAG(g.valor_ida) OVER (PARTITION BY g.grupo_base ORDER BY m.ano_mes) > 0
-                THEN ((g.valor_ida - LAG(g.valor_ida) OVER (PARTITION BY g.grupo_base ORDER BY m.ano_mes)) 
-                      / LAG(g.valor_ida) OVER (PARTITION BY g.grupo_base ORDER BY m.ano_mes)) * 100
+                WHEN LAG(g.valor_ida) OVER (PARTITION BY g.grupo_base ORDER BY g.id_tempo) > 0
+                THEN ((g.valor_ida - LAG(g.valor_ida) OVER (PARTITION BY g.grupo_base ORDER BY g.id_tempo)) 
+                      / LAG(g.valor_ida) OVER (PARTITION BY g.grupo_base ORDER BY g.id_tempo)) * 100
             END as var_individual
         FROM Media_Mercado m
         JOIN Metricas_Grupadas g ON m.id_tempo = g.id_tempo
     )
     SELECT 
         ano_mes as "Mes",
-        COALESCE(ROUND(AVG(var_mercado)::numeric, 1), 0) as "Taxa de Variação Média", ' || CHR(10) ||
+        COALESCE(ROUND(MAX(var_mercado)::numeric, 1), 0) as "Taxa de Variação Média", ' || CHR(10) ||
         v_columns || CHR(10) ||
     'FROM (
         SELECT ano_mes, var_mercado, grupo_base, (var_mercado - var_individual) as diferenca 
