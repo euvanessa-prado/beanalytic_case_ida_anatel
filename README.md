@@ -1,9 +1,23 @@
 # Case Técnico: Data Mart IDA Anatel
 
-## 📌 Visão Geral
+## Visão Geral
 Este projeto implementa uma solução de Engenharia de Dados ponta a ponta para a ingestão, tratamento e modelagem analítica dos dados do **Índice de Desempenho no Atendimento (IDA)** da Anatel. A solução automatiza a extração de arquivos OpenDocument (.ods), normaliza estruturas variadas através de processamento Python e consolida as métricas em um Data Mart PostgreSQL seguindo o modelo dimensional (Star Schema).
 
-## 🏗️ Arquitetura da Solução
+## Arquitetura da Solução
+
+## Ferramentas e Bibliotecas
+- Linguagem: Python 3.11.12
+- Banco: PostgreSQL 17.5
+- Orquestração: Docker Compose
+- Frontend: Streamlit
+- Visualização: Plotly
+- Bibliotecas Python:
+  - pandas, odfpy (leitura/transformação ODS)
+  - psycopg2-binary (PostgreSQL)
+  - python-dotenv (configuração via ambiente)
+  - requests, Playwright (extração opcional)
+  - Pillow (tratamento de imagem)
+  - matplotlib (apoio visual, opcional)
 
 ### 1. Camada de Ingestão (Python)
 - **ODS Processor**: Motor em Python que utiliza `pandas` e `odfpy` para ler planilhas brutas.
@@ -22,7 +36,7 @@ Este projeto implementa uma solução de Engenharia de Dados ponta a ponta para 
 - **View Pivotada**: Implementação de SQL dinâmico para gerar relatórios de variação percentual mês a mês, permitindo comparação direta entre o desempenho individual das operadoras e a média do mercado.
 - **Dashboard Interativo**: Interface gráfica desenvolvida em **Streamlit** para visualização amigável dos dados, permitindo análises de tendência e heatmaps comparativos.
 
-## 🚀 Como Executar
+## Execução
 
 A solução é totalmente conteinerizada via Docker. Siga os passos abaixo:
 
@@ -56,21 +70,69 @@ A solução é totalmente conteinerizada via Docker. Siga os passos abaixo:
    ```
    - O ETL recria o Data Mart automaticamente.
 
-## 🎯 Objetos de Avaliação (Prova Técnica)
+## Objetos de Avaliação (Prova Técnica)
 - O projeto roda integralmente com `docker compose up` (infra + ETL + dashboard).
 - SQL: organização, clareza e documentação usando `COMMENT ON`.
 - Python: organização, clareza, docstrings (pydoc) e uso de OOP.
 - Sem dependência de scripts externos; instruções mínimas e diretas.
 
-## 📁 Estrutura do Projeto
+## Estrutura do Projeto
 - `/sql`: Scripts de DDL, Transformação e Views.
 - `/src`: Módulos Python (Normalização e Carregamento).
 - `/dados_ida`: Repositório de arquivos brutos (.ods).
 - `docker-compose.yml`: Orquestração da infraestrutura.
 - `/assets`: Recursos gráficos do dashboard.
 
-## 📊 Principais Métricas
+## Métricas Principais
 - **Taxa de Variação Individual**: Evolução percentual do IDA de uma operadora.
 - **Benchmarking de Mercado**: Comparação da variação individual contra a média do setor.
 - **Métrica de Agilidade**: Taxa de resolvidas em até 5 dias úteis.
-# beanalytic_case_ida_anatel
+
+## 📜 Sequência dos Scripts (ETL)
+1. Inicialização do schema e tabelas:
+   - [00_init_completo.sql](file:///home/vanessa-aws/projeto_beAnalytic_copia/sql/00_init_completo.sql)
+2. Transformação e carga para o modelo estrela:
+   - [01_transform_load.sql](file:///home/vanessa-aws/projeto_beAnalytic_copia/sql/01_transform_load.sql)
+3. Camada analítica (view com variação e pivô):
+   - [02_view_pivotada.sql](file:///home/vanessa-aws/projeto_beAnalytic_copia/sql/02_view_pivotada.sql)
+4. Orquestração e chamada dos scripts (Python):
+   - [carregar_dados.py](file:///home/vanessa-aws/projeto_beAnalytic_copia/carregar_dados.py#L42-L99)
+
+## 🧭 Passo a Passo do ETL
+- Ler ODS de `dados_ida/` e normalizar para long-format: [ods_processor.py](file:///home/vanessa-aws/projeto_beAnalytic_copia/src/ods_processor.py)
+- Carregar em lote para `ida.staging_ida`: [staging_loader.py](file:///home/vanessa-aws/projeto_beAnalytic_copia/src/staging_loader.py)
+- Consolidar dimensões e fato: [01_transform_load.sql](file:///home/vanessa-aws/projeto_beAnalytic_copia/sql/01_transform_load.sql)
+- Construir view de variação pivoteada: [02_view_pivotada.sql](file:///home/vanessa-aws/projeto_beAnalytic_copia/sql/02_view_pivotada.sql)
+- Exibir no dashboard (tema escuro, filtros na lateral, KPIs dinâmicos): [dashboard.py](file:///home/vanessa-aws/projeto_beAnalytic_copia/src/dashboard.py)
+
+## 🧪 Validações Úteis
+- Contagens rápidas (após carga):
+  ```bash
+  docker compose exec postgres psql -U postgres -d ida_datamart -c "SELECT COUNT(*) FROM ida.fato_ida;"
+  docker compose exec postgres psql -U postgres -d ida_datamart -c "SELECT COUNT(*) FROM ida.vw_taxa_variacao_pivotada;"
+  ```
+
+## 🛠️ Troubleshooting
+- Mensagem “Inicialização em andamento” no dashboard:
+  - O ETL ainda está criando a view; aguarde “ETL completed successfully” e recarregue a página.
+- Reconstruir tudo do zero:
+  - `docker compose down -v && docker compose up -d`
+- Logs do ETL:
+  - `docker compose logs -f data_loader`
+
+## ✅ Roadmap de Profissionalização
+- Opcional: integrar dbt para materializar dim/fato/view com testes e documentação.
+- Adicionar CI com lint/testes de import (GitHub Actions).
+
+## Transformações com dbt (opcional)
+- Projeto dbt incluído em `/dbt` (models para dim_tempo, dim_grupo_economico, dim_servico e fato_ida).
+- Executar dbt via Compose perfil “analytics”:
+  ```bash
+  docker compose --profile analytics up dbt
+  ```
+  ou em execução pontual:
+  ```bash
+  docker compose run --rm dbt bash -lc "dbt run && dbt test"
+  ```
+- Conexão configurada em `/dbt/profiles.yml` para o Postgres do Compose.
+- Modelo analítico “long_delta” para variação mensal e diferença (mercado vs individual).

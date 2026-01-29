@@ -1,0 +1,56 @@
+version: 2
+
+models:
+  - name: dim_tempo
+    columns:
+      - name: ano_mes
+        tests:
+          - not_null
+          - unique
+      - name: ano
+        tests: [not_null]
+      - name: mes
+        tests: [not_null]
+
+  - name: dim_grupo_economico
+    columns:
+      - name: nome_grupo
+        tests:
+          - not_null
+          - unique
+
+  - name: dim_servico
+    columns:
+      - name: codigo_servico
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['SMP','STFC','SCM']
+
+  - name: fato_ida
+    columns:
+      - name: id_tempo
+        tests: [not_null]
+      - name: nome_grupo
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_grupo_economico')
+              field: nome_grupo
+      - name: codigo_servico
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_servico')
+              field: codigo_servico
+      - name: taxa_solicitacoes_resolvidas_5dias
+        tests: [not_null]
+
+  - name: long_delta
+    columns:
+      - name: ano_mes
+        tests: [not_null]
+      - name: nome_grupo
+        tests: [not_null]
+      - name: diferenca
+        tests: [not_null]

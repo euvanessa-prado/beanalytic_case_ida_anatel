@@ -19,14 +19,15 @@ ON CONFLICT (ano_mes) DO NOTHING;
 
 WITH grupo_norm AS (
     SELECT DISTINCT
-        TRIM(UPPER(grupo_economico)) as nome_raw,
+        REGEXP_REPLACE(TRIM(REGEXP_REPLACE(UPPER(grupo_economico), '\s*\([^)]*\)|\*+', '', 'g')), '\s+', ' ', 'g') as nome_raw,
         CASE 
-            WHEN TRIM(UPPER(grupo_economico)) LIKE 'OI%' THEN 'OI'
-            WHEN TRIM(UPPER(grupo_economico)) LIKE 'CLARO%' THEN 'CLARO'
-            WHEN TRIM(UPPER(grupo_economico)) LIKE 'VIVO%' OR TRIM(UPPER(grupo_economico)) LIKE 'TELEFÔNICA%' THEN 'VIVO'
-            WHEN TRIM(UPPER(grupo_economico)) LIKE 'TIM%' THEN 'TIM'
-            WHEN TRIM(UPPER(grupo_economico)) LIKE 'CTBC%' OR TRIM(UPPER(grupo_economico)) LIKE 'ALGAR%' THEN 'ALGAR'
-            ELSE TRIM(UPPER(grupo_economico))
+            WHEN REGEXP_REPLACE(TRIM(REGEXP_REPLACE(UPPER(grupo_economico), '\s*\([^)]*\)|\*+', '', 'g')), '\s+', ' ', 'g') LIKE 'OI%' THEN 'OI'
+            WHEN REGEXP_REPLACE(TRIM(REGEXP_REPLACE(UPPER(grupo_economico), '\s*\([^)]*\)|\*+', '', 'g')), '\s+', ' ', 'g') LIKE 'CLARO%' THEN 'CLARO'
+            WHEN REGEXP_REPLACE(TRIM(REGEXP_REPLACE(UPPER(grupo_economico), '\s*\([^)]*\)|\*+', '', 'g')), '\s+', ' ', 'g') LIKE 'VIVO%' OR REGEXP_REPLACE(TRIM(REGEXP_REPLACE(UPPER(grupo_economico), '\s*\([^)]*\)|\*+', '', 'g')), '\s+', ' ', 'g') LIKE 'TELEFÔNICA%' THEN 'VIVO'
+            WHEN REGEXP_REPLACE(TRIM(REGEXP_REPLACE(UPPER(grupo_economico), '\s*\([^)]*\)|\*+', '', 'g')), '\s+', ' ', 'g') LIKE 'TIM%' THEN 'TIM'
+            WHEN REGEXP_REPLACE(TRIM(REGEXP_REPLACE(UPPER(grupo_economico), '\s*\([^)]*\)|\*+', '', 'g')), '\s+', ' ', 'g') LIKE 'CTBC%' OR REGEXP_REPLACE(TRIM(REGEXP_REPLACE(UPPER(grupo_economico), '\s*\([^)]*\)|\*+', '', 'g')), '\s+', ' ', 'g') LIKE 'ALGAR%' THEN 'ALGAR'
+            WHEN REGEXP_REPLACE(TRIM(REGEXP_REPLACE(UPPER(grupo_economico), '\s*\([^)]*\)|\*+', '', 'g')), '\s+', ' ', 'g') LIKE 'SERCOMTEL%' THEN 'SERCOMTEL'
+            ELSE REGEXP_REPLACE(TRIM(REGEXP_REPLACE(UPPER(grupo_economico), '\s*\([^)]*\)|\*+', '', 'g')), '\s+', ' ', 'g')
         END as nome_final
     FROM staging_ida
 )
@@ -62,12 +63,13 @@ WITH refined AS (
         ano_mes,
         UPPER(servico) as svc,
         CASE 
-            WHEN TRIM(UPPER(grupo_economico)) LIKE 'OI%' THEN 'OI'
-            WHEN TRIM(UPPER(grupo_economico)) LIKE 'CLARO%' THEN 'CLARO'
-            WHEN TRIM(UPPER(grupo_economico)) LIKE 'VIVO%' OR TRIM(UPPER(grupo_economico)) LIKE 'TELEFÔNICA%' THEN 'VIVO'
-            WHEN TRIM(UPPER(grupo_economico)) LIKE 'TIM%' THEN 'TIM'
-            WHEN TRIM(UPPER(grupo_economico)) LIKE 'CTBC%' OR TRIM(UPPER(grupo_economico)) LIKE 'ALGAR%' THEN 'ALGAR'
-            ELSE TRIM(UPPER(grupo_economico))
+            WHEN REGEXP_REPLACE(TRIM(REGEXP_REPLACE(UPPER(grupo_economico), '\s*\([^)]*\)|\*+', '', 'g')), '\s+', ' ', 'g') LIKE 'OI%' THEN 'OI'
+            WHEN REGEXP_REPLACE(TRIM(REGEXP_REPLACE(UPPER(grupo_economico), '\s*\([^)]*\)|\*+', '', 'g')), '\s+', ' ', 'g') LIKE 'CLARO%' THEN 'CLARO'
+            WHEN REGEXP_REPLACE(TRIM(REGEXP_REPLACE(UPPER(grupo_economico), '\s*\([^)]*\)|\*+', '', 'g')), '\s+', ' ', 'g') LIKE 'VIVO%' OR REGEXP_REPLACE(TRIM(REGEXP_REPLACE(UPPER(grupo_economico), '\s*\([^)]*\)|\*+', '', 'g')), '\s+', ' ', 'g') LIKE 'TELEFÔNICA%' THEN 'VIVO'
+            WHEN REGEXP_REPLACE(TRIM(REGEXP_REPLACE(UPPER(grupo_economico), '\s*\([^)]*\)|\*+', '', 'g')), '\s+', ' ', 'g') LIKE 'TIM%' THEN 'TIM'
+            WHEN REGEXP_REPLACE(TRIM(REGEXP_REPLACE(UPPER(grupo_economico), '\s*\([^)]*\)|\*+', '', 'g')), '\s+', ' ', 'g') LIKE 'CTBC%' OR REGEXP_REPLACE(TRIM(REGEXP_REPLACE(UPPER(grupo_economico), '\s*\([^)]*\)|\*+', '', 'g')), '\s+', ' ', 'g') LIKE 'ALGAR%' THEN 'ALGAR'
+            WHEN REGEXP_REPLACE(TRIM(REGEXP_REPLACE(UPPER(grupo_economico), '\s*\([^)]*\)|\*+', '', 'g')), '\s+', ' ', 'g') LIKE 'SERCOMTEL%' THEN 'SERCOMTEL'
+            ELSE REGEXP_REPLACE(TRIM(REGEXP_REPLACE(UPPER(grupo_economico), '\s*\([^)]*\)|\*+', '', 'g')), '\s+', ' ', 'g')
         END as grp,
         MAX(CASE WHEN variavel ILIKE 'Indicador de Desempenho%' OR variavel ILIKE 'Índice de Desempenho%' THEN valor END) as val_ida,
         MAX(CASE WHEN variavel ILIKE 'Taxa de Resolvidas em 5 dias%' THEN valor END) as tx_5d,

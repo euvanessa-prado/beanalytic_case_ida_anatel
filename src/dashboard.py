@@ -10,6 +10,8 @@ import pandas as pd
 import psycopg2
 import plotly.express as px
 import plotly.graph_objects as go
+import re
+from collections import defaultdict
 from config import DB_CONFIG
 from pathlib import Path
 import numpy as np
@@ -98,9 +100,19 @@ def load_data():
     try:
         conn = psycopg2.connect(**DB_CONFIG, options='-c search_path=ida,public')
         
-        # 1. Carregar View Pivotada (Comparativo de Variação)
-        query = "SELECT * FROM vw_taxa_variacao_pivotada ORDER BY 1"
-        df = pd.read_sql(query, conn)
+        df = None
+        for v in ["vw_taxa_variacao_pivotada", "pivot_variacao"]:
+            try:
+                df = pd.read_sql(f"SELECT * FROM {v} ORDER BY 1", conn)
+                if not df.empty or df is not None:
+                    break
+            except Exception as e:
+                if "does not exist" in str(e) or "não existe" in str(e):
+                    continue
+                raise
+        if df is None:
+            conn.close()
+            return None, None
         
         # Tratamento de Dados da View
         cols_numericas = df.columns.drop(['Mes', 'Taxa de Variação Média'])
@@ -113,20 +125,61 @@ def load_data():
         mask = (df[cols_numericas] > 200) | (df[cols_numericas] < -200)
         df[cols_numericas] = df[cols_numericas].mask(mask)
         
-        # 2. Carregar Dados Brutos (Tendência Absoluta)
-        query_trend = """
-            SELECT 
-                dt.ano_mes,
-                dg.nome_grupo,
-                ds.nome_servico,
-                f.taxa_solicitacoes_resolvidas_5dias as ida
-            FROM fato_ida f
-            JOIN dim_tempo dt ON f.id_tempo = dt.id_tempo
-            JOIN dim_grupo_economico dg ON f.id_grupo = dg.id_grupo
-            JOIN dim_servico ds ON f.id_servico = ds.id_servico
-            ORDER BY dt.ano_mes
-        """
-        df_trend = pd.read_sql(query_trend, conn)
+        def _clean_group(n: str) -> str:
+            x = re.sub(r"\s*\([^)]*\)", "", n or "")
+            x = re.sub(r"\*+", "", x)
+            x = re.sub(r"\s+", " ", x).strip().upper()
+            if x.startswith("SERCOMTEL"):
+                x = "SERCOMTEL"
+            return x
+        new_map = defaultdict(list)
+        for c in cols_numericas:
+            new_map[_clean_group(c)].append(c)
+        df_clean = pd.DataFrame()
+        df_clean["Mes"] = df["Mes"]
+        df_clean["Taxa de Variação Média"] = df["Taxa de Variação Média"]
+        for k, lst in new_map.items():
+            df_clean[k] = df[lst].mean(axis=1)
+        df = df_clean
+        
+        df_trend = None
+        # Tenta com modelo dbt (campos: f.nome_grupo, f.id_tempo, f.codigo_servico)
+        try:
+            query_trend_dbt = """
+                SELECT 
+                    dt.ano_mes,
+                    f.nome_grupo,
+                    ds.nome_servico,
+                    f.taxa_solicitacoes_resolvidas_5dias AS ida
+                FROM fato_ida f
+                JOIN dim_tempo dt ON f.id_tempo = dt.id_tempo
+                JOIN dim_servico ds ON f.codigo_servico = ds.codigo_servico
+                ORDER BY dt.ano_mes
+            """
+            df_trend = pd.read_sql(query_trend_dbt, conn)
+        except Exception:
+            # Fallback para modelo original (campos: f.id_grupo, f.id_servico)
+            query_trend_orig = """
+                SELECT 
+                    dt.ano_mes,
+                    dg.nome_grupo,
+                    ds.nome_servico,
+                    f.taxa_solicitacoes_resolvidas_5dias AS ida
+                FROM fato_ida f
+                JOIN dim_tempo dt ON f.id_tempo = dt.id_tempo
+                JOIN dim_grupo_economico dg ON f.id_grupo = dg.id_grupo
+                JOIN dim_servico ds ON f.id_servico = ds.id_servico
+                ORDER BY dt.ano_mes
+            """
+            df_trend = pd.read_sql(query_trend_orig, conn)
+        
+        df_trend["nome_grupo"] = (
+            df_trend["nome_grupo"]
+            .map(lambda x: re.sub(r"\s*\([^)]*\)", "", str(x)))
+            .map(lambda x: re.sub(r"\*+", "", str(x)))
+            .map(lambda x: re.sub(r"\s+", " ", str(x)).strip().upper())
+            .map(lambda x: "SERCOMTEL" if x.startswith("SERCOMTEL") else x)
+        )
         
         conn.close()
         return df, df_trend
@@ -205,7 +258,10 @@ with st.sidebar:
         operadoras, 
         default=operadoras[:4] if len(operadoras) >= 4 else operadoras
     )
-    df_view_plot_sidebar = df_view[df_view['Ano'].isin(sel_anos)] if sel_anos else df_view
+    df_month_basis = df_view[df_view['Ano'].isin(sel_anos)] if sel_anos else df_view
+    meses = sorted(df_month_basis['Mes'].unique())
+    sel_meses = st.multiselect("Meses:", meses, default=meses[-3:] if len(meses) >= 3 else meses)
+    df_view_plot_sidebar = df_month_basis[df_month_basis['Mes'].isin(sel_meses)] if sel_meses else df_month_basis
     if selected_ops:
         medias = df_view_plot_sidebar[selected_ops].mean().sort_values(ascending=False)
         top_op = medias.index[0]
@@ -245,14 +301,36 @@ except NameError:
     kpi_df = df_view
 ultimo_mes = kpi_df.iloc[-1]
 delta_kpi = None
-if len(kpi_df) >= 2:
-    delta_kpi = round(ultimo_mes['Taxa de Variação Média'] - kpi_df['Taxa de Variação Média'].iloc[-2], 2)
+try:
+    # Cálculo da variação média do mercado respeitando filtro de anos
+    df_trend_base = df_trend.copy()
+    try:
+        df_trend_base['Ano'] = df_trend_base['ano_mes'].str.slice(0, 4)
+        if sel_anos:
+            df_trend_base = df_trend_base[df_trend_base['Ano'].isin(sel_anos)]
+        if sel_meses:
+            df_trend_base = df_trend_base[df_trend_base['ano_mes'].isin(sel_meses)]
+    except Exception:
+        pass
+    market = df_trend_base.groupby('ano_mes', as_index=False)['ida'].mean().sort_values('ano_mes')
+    market['var_mercado'] = market['ida'].pct_change() * 100
+    var_last = market['var_mercado'].iloc[-1]
+    var_prev = market['var_mercado'].iloc[-2] if len(market) >= 2 else None
+    delta_kpi = round(var_last - var_prev, 2) if var_prev is not None else None
+except Exception:
+    if len(kpi_df) >= 2:
+        delta_kpi = round(ultimo_mes['Taxa de Variação Média'] - kpi_df['Taxa de Variação Média'].iloc[-2], 2)
 
 with col1:
     st.metric("📅 Última Referência", ultimo_mes['Mes'], delta_color="off")
 with col2:
-    val_mercado = ultimo_mes['Taxa de Variação Média']
-    st.metric("📉 Variação Média (Mercado)", f"{val_mercado}%", delta=f"{delta_kpi} pp" if delta_kpi is not None else None, delta_color="normal")
+    try:
+        val_mercado_fmt = f"{round(float(var_last), 1)}%"
+    except Exception:
+        # Fallback para a coluna da view caso algo falhe
+        val_mercado = ultimo_mes['Taxa de Variação Média']
+        val_mercado_fmt = f"{round(float(val_mercado), 1)}%" if str(val_mercado).replace('.','',1).isdigit() else f"{val_mercado}%"
+    st.metric("📉 Variação Média (Mercado)", val_mercado_fmt, delta=f"{delta_kpi} pp" if delta_kpi is not None else None, delta_color="normal")
 with col3:
     try:
         ops_count = len(selected_ops) if selected_ops else len(df_view.columns) - 2
@@ -270,9 +348,11 @@ with col4:
 
 # KPIs de Benchmark (com base nos filtros)
 try:
-    df_view_plot_kpi = df_view[df_view['Ano'].isin(sel_anos)] if sel_anos else df_view
-    if selected_ops:
-        medias_kpi = df_view_plot_kpi[selected_ops].mean().sort_values(ascending=False)
+    base_kpi = df_view[df_view['Ano'].isin(sel_anos)] if sel_anos else df_view
+    df_view_plot_kpi = base_kpi[base_kpi['Mes'].isin(sel_meses)] if sel_meses else base_kpi
+    k_ops = selected_ops if selected_ops else [c for c in df_view_plot_kpi.columns if c not in ['Mes','Taxa de Variação Média','Ano']]
+    if k_ops:
+        medias_kpi = df_view_plot_kpi[k_ops].mean().sort_values(ascending=False)
         k_col1, k_col2, k_col3 = st.columns(3)
         with k_col1:
             st.metric("🏆 Melhor Operadora (Δ médio)", f"{medias_kpi.index[0]} | {round(medias_kpi.iloc[0],2)}%")
@@ -294,47 +374,82 @@ tab_benchmark, tab_historico, tab_sobre = st.tabs([
 
 # --- ABA 1: BENCHMARK ---
 with tab_benchmark:
-    col_chart, col_desc = st.columns([3, 1])
+    # Filtros aplicados
+    base_plot = df_view[df_view['Ano'].isin(sel_anos)] if sel_anos else df_view
+    df_view_plot = base_plot[base_plot['Mes'].isin(sel_meses)] if sel_meses else base_plot
     
-    with col_desc:
-        st.markdown("#### 🔍 Análise de Delta")
-        st.info("""
-        **Como interpretar o gráfico**
-        - Mostra o **Delta de Performance** por operadora ao longo dos meses.
-        - A linha vermelha em **y = 0** é a **referência da média do mercado**.
-        - **Acima de 0**: a operadora performou **melhor** que a média do mercado no mês.
-        - **Abaixo de 0**: a operadora performou **pior** que a média do mercado no mês.
-        """)
-
-    with col_chart:
-        # Aplicando filtros
-        df_view_plot = df_view[df_view['Ano'].isin(sel_anos)] if sel_anos else df_view
+    if not selected_ops:
+        st.warning("👈 Selecione pelo menos uma operadora para visualizar a análise.")
+    else:
+        # Layout principal: Gráfico de Linha + Descrição
+        col_chart, col_desc = st.columns([3, 1])
         
-        if selected_ops:
+        with col_desc:
+            st.markdown("#### 🔍 Análise de Delta")
+            st.info("""
+            **Como interpretar o gráfico**
+            - **Delta de Performance**: Diferença entre a nota da operadora e a média do mercado.
+            - **Linha Vermelha (0)**: Média do mercado.
+            - **Positivo**: Desempenho superior.
+            - **Negativo**: Desempenho inferior.
+            """)
+            
+            # Ranking Rápido (Barras) na lateral
+            ranking_df = df_view_plot[selected_ops].mean().sort_values(ascending=True).reset_index()
+            ranking_df.columns = ['Operadora', 'Delta Médio']
+            
+            fig_bar = px.bar(
+                ranking_df,
+                x='Delta Médio',
+                y='Operadora',
+                orientation='h',
+                text='Delta Médio',
+                title="<b>Ranking Médio (Período)</b>",
+                color='Delta Médio',
+                color_continuous_scale='RdYlGn',
+                height=350
+            )
+            fig_bar.update_traces(texttemplate='%{text:.2f}', textposition='inside')
+            fig_bar.update_layout(
+                template="plotly_dark",
+                plot_bgcolor="#1c1f26",
+                margin=dict(t=40, l=0, r=0, b=0),
+                xaxis=dict(showgrid=False, showticklabels=False),
+                yaxis=dict(title=None),
+                coloraxis_showscale=False,
+                font=dict(family="Segoe UI, sans-serif", size=11, color="#e0e0e0")
+            )
+            st.plotly_chart(fig_bar, use_container_width=True)
+
+        with col_chart:
+            # Preparar dados para plotagem com labels (Long Format)
+            df_long = df_view_plot.melt(
+                id_vars=['Mes'], 
+                value_vars=selected_ops, 
+                var_name='Operadora', 
+                value_name='Delta'
+            )
+            
             fig = px.line(
-                df_view_plot, 
+                df_long, 
                 x="Mes", 
-                y=selected_ops,
+                y="Delta",
+                color="Operadora",
+                text="Delta",  # Adiciona os valores nas junções
                 title="<b>Performance Relativa (Diferença vs Média de Mercado)</b>",
                 markers=True,
                 height=550
             )
             # Adicionar linha de referência
-            fig.add_hline(y=0, line_dash="dash", line_color="#d32f2f", annotation_text="Média de Mercado (Zero)")
+            fig.add_hline(y=0, line_dash="dash", line_color="#d32f2f", annotation_text="Média (0)")
             
             # Layout Profissional
+            fig.update_traces(textposition="top center", texttemplate='%{text:.1f}')
             fig.update_layout(
                 xaxis_title="Mês de Referência",
                 yaxis_title="Delta Percentual (%)",
                 hovermode="x unified",
-                legend=dict(
-                    orientation="h",
-                    yanchor="bottom",
-                    y=1.02,
-                    xanchor="right",
-                    x=1,
-                    title=None
-                ),
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, title=None),
                 template="plotly_dark",
                 plot_bgcolor="#1c1f26",
                 margin=dict(t=50, l=20, r=20, b=20),
@@ -344,17 +459,56 @@ with tab_benchmark:
             fig.update_yaxes(showgrid=True, gridwidth=1, gridcolor='#2a2e35', color="#e0e0e0")
             
             st.plotly_chart(fig, use_container_width=True)
-            st.caption("""
-            Regras do cálculo:
-            - 1) **Variação do Mercado (%):** (IDA_mercado_mês − IDA_mercado_mês_anterior) ÷ IDA_mercado_mês_anterior × 100
-            - 2) **Variação da Operadora (%):** (IDA_op_mês − IDA_op_mês_anterior) ÷ IDA_op_mês_anterior × 100
-            - 3) **Diferença na view:** var_mercado − var_individual
-            - 4) **Leitura no painel:** exibimos (Individual − Mercado). Assim, **positivo = acima da média** e **negativo = abaixo**.
-            """)
-        else:
-            st.warning("👈 Selecione pelo menos uma operadora para visualizar a análise.")
 
-    # Tabela de Dados (Expansível para não poluir)
+        st.markdown("---")
+        
+        # Novos Gráficos: Heatmap e Dispersão (Lado a Lado)
+        c_heat, c_extra = st.columns(2)
+        
+        with c_heat:
+            st.markdown("#### 🔥 Mapa de Calor de Performance")
+            # Heatmap
+            fig_heat = px.imshow(
+                df_view_plot.set_index('Mes')[selected_ops].T,
+                labels=dict(x="Mês", y="Operadora", color="Delta"),
+                x=df_view_plot['Mes'],
+                y=selected_ops,
+                color_continuous_scale='RdYlGn',
+                text_auto='.1f',
+                aspect="auto",
+                height=400
+            )
+            fig_heat.update_layout(
+                template="plotly_dark",
+                plot_bgcolor="#1c1f26",
+                margin=dict(t=20, l=0, r=0, b=0),
+                font=dict(family="Segoe UI, sans-serif", size=11, color="#e0e0e0")
+            )
+            st.plotly_chart(fig_heat, use_container_width=True)
+            
+        with c_extra:
+            st.markdown("#### 📊 Distribuição de Performance")
+            # Boxplot para ver variabilidade
+            fig_box = px.box(
+                df_long,
+                x="Operadora",
+                y="Delta",
+                color="Operadora",
+                points="all",
+                title="Variabilidade do Desempenho por Operadora",
+                height=400
+            )
+            fig_box.update_layout(
+                template="plotly_dark",
+                plot_bgcolor="#1c1f26",
+                showlegend=False,
+                margin=dict(t=40, l=0, r=0, b=0),
+                font=dict(family="Segoe UI, sans-serif", size=11, color="#e0e0e0")
+            )
+            fig_box.add_hline(y=0, line_dash="dash", line_color="#d32f2f")
+            st.plotly_chart(fig_box, use_container_width=True)
+
+    # Tabela de Dados (Expansível)
     with st.expander("📋 Visualizar Dados Tabulares", expanded=True):
         st.markdown("""
         **Legenda do Heatmap:**
@@ -413,24 +567,19 @@ with tab_historico:
             x="ano_mes",
             y="ida",
             color="nome_grupo",
+            text="ida",
             title=f"<b>Evolução Histórica - {sel_servico}</b>",
             markers=True,
             height=500
         )
+        fig2.update_traces(textposition="top center", texttemplate='%{text:.1f}')
         fig2.update_layout(
             xaxis_title="Período",
             yaxis_title="IDA (Taxa de Resolução %)",
             hovermode="x unified",
             template="plotly_dark",
             plot_bgcolor="#1c1f26",
-            legend=dict(
-                orientation="h",
-                yanchor="bottom",
-                y=1.02,
-                xanchor="right",
-                x=1,
-                title=None
-            ),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, title=None),
             font=dict(family="Segoe UI, sans-serif", size=12, color="#e0e0e0")
         )
         fig2.update_xaxes(showgrid=True, gridwidth=1, gridcolor='#2a2e35', color="#e0e0e0")
@@ -474,6 +623,15 @@ with tab_sobre:
         Docker (Containerization)
         Playwright (Web Scraping)
         """, language="text")
+        st.markdown("### 📐 Métricas e Regras de Cálculo")
+        st.write("""
+        - IDA (%): taxa de resoluções em 5 dias. Fonte: **fato_ida**.
+        - Mercado (%): média mensal do IDA entre operadoras (benchmark).
+        - Variação (%): diferença percentual mês-a-mês contra o mês anterior.
+        - Delta (Individual − Mercado): leitura positiva indica desempenho superior ao benchmark.
+        - View analítica: **vw_taxa_variacao_pivotada** e alternativa dbt **pivot_variacao**.
+        - Tratamentos: remoção de outliers (> |200%|), limpeza e padronização de nomes de grupos.
+        """)
 
 # --- FOOTER ---
 st.markdown("""

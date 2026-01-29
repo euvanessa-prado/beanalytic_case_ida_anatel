@@ -57,6 +57,23 @@ services:
     networks:
       - ida_network
 
+  dbt:
+    image: ghcr.io/dbt-labs/dbt-postgres:1.7.3
+    container_name: ida_dbt
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DBT_PROFILES_DIR: /opt/dbt
+    working_dir: /opt/dbt
+    volumes:
+      - ./dbt:/opt/dbt
+    command: run
+    networks:
+      - ida_network
+    profiles:
+      - analytics
+
 volumes:
   postgres-data:
 

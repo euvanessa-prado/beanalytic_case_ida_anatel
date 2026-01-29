@@ -1,0 +1,16 @@
+name: beanalytic_ida
+version: 1.0.0
+profile: beanalytic_ida
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+snapshot-paths: ["snapshots"]
+
+models:
+  beanalytic_ida:
+    +materialized: table
+    mart: {}
+    facts: {}
+    analytics: {}

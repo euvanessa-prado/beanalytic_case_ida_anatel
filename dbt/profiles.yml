@@ -1,0 +1,12 @@
+beanalytic_ida:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: postgres
+      user: postgres
+      password: postgres
+      port: 5432
+      dbname: ida_datamart
+      schema: ida
+      threads: 4
