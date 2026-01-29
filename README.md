@@ -7,6 +7,12 @@ Este projeto implementa uma solução de Engenharia de Dados ponta a ponta para 
 
 A solução é totalmente conteinerizada via Docker. Siga os passos abaixo:
 
+0. **Clonar o repositório**:
+   ```bash
+   git clone https://github.com/euvanessa-prado/beanalytic_case_ida_anatel.git
+   cd beanalytic_case_ida_anatel
+   ```
+
 1. **Pré-requisitos**:
    - Docker e Docker Compose instalados.
 
@@ -59,6 +65,10 @@ A solução é totalmente conteinerizada via Docker. Siga os passos abaixo:
 - ETL concluído com sucesso:
 
 ![ETL concluído com sucesso](assets/Screenshot_14.png?raw=true)
+
+- Docker em execução:
+
+![Containers ativos (Docker)](assets/image.png?raw=true)
 
 Caso prefira outro nome, ajuste o caminho da imagem conforme necessário em `assets/`.
 
