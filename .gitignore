@@ -1,3 +1,7 @@
 
 # Dados Processados
 dados_ida/parquet/
+
+# dbt artifacts
+dbt/target/
+dbt/logs/
