@@ -58,9 +58,9 @@ A solução é totalmente conteinerizada via Docker. Siga os passos abaixo:
 ### Evidência de Execução
 - ETL concluído com sucesso:
 
-![ETL concluído com sucesso](assets/etl_concluido_sucesso.png)
+![ETL concluído com sucesso](assets/image.png)
 
-Coloque o arquivo da captura de tela em `assets/etl_concluido_sucesso.png` para visualizar no README.
+Caso prefira outro nome, ajuste o caminho da imagem conforme necessário em `assets/`.
 
 ### Métricas Principais
 - **Taxa de Variação Individual**: Evolução percentual do IDA de uma operadora.
