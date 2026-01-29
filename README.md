@@ -3,6 +3,65 @@
 ## Visão Geral
 Este projeto implementa uma solução de Engenharia de Dados ponta a ponta para a ingestão, tratamento e modelagem analítica dos dados do **Índice de Desempenho no Atendimento (IDA)** da Anatel. A solução automatiza a extração de arquivos OpenDocument (.ods), normaliza estruturas variadas através de processamento Python e consolida as métricas em um Data Mart PostgreSQL seguindo o modelo dimensional (Star Schema).
 
+## Execução
+
+A solução é totalmente conteinerizada via Docker. Siga os passos abaixo:
+
+1. **Pré-requisitos**:
+   - Docker e Docker Compose instalados.
+
+2. **Subir tudo (um comando)**:
+   ```bash
+   docker compose up -d --build
+   ```
+   - O parâmetro `--build` garante que qualquer alteração recente no código seja incorporada à imagem.
+   - As configurações usam valores padrão seguros (banco local), mas podem ser sobrescritas via `.env` se necessário.
+   - Após remover volumes (reset), os dados são recarregados automaticamente pelo ETL.
+
+3. **Acesso e Credenciais**:
+   - **Dashboard (Streamlit)**: [http://localhost:8501](http://localhost:8501)
+   - **Banco de Dados (PostgreSQL)**:
+     - **Host**: `localhost` (porta 5432)
+     - **Database**: `ida_datamart`
+     - **User**: `postgres`
+     - **Password**: `postgres`
+   - **Administração (PgAdmin)**:
+     - **Link**: [http://localhost:5050](http://localhost:5050)
+     - **Email**: `admin@admin.com`
+     - **Senha**: `admin`
+     - *Dica: Para conectar ao banco no PgAdmin, use o host `postgres` (nome do container).*
+   - **Conexão Externa (DBeaver/PowerBI)**:
+     - Utilize as mesmas credenciais do PostgreSQL acima. O host é `localhost` pois a porta 5432 está exposta.
+   
+   > **Nota para o Avaliador:** As credenciais são padrão (`postgres`/`postgres`) para facilitar a execução local do teste técnico. Em produção, utilizaríamos variáveis de ambiente seguras (Secrets).
+
+4. **Fluxo Automático**:
+   - O banco PostgreSQL é inicializado com o schema base.
+   - O container `data_loader` aguarda o banco estar `healthy`.
+   - Inicia o processamento dos arquivos presentes em `dados_ida/`.
+   - Executa as transformações SQL para carga da Fato e criação das Views:
+     - [01_transform_load.sql](sql/01_transform_load.sql)
+    - [view_taxa_resolucao_5_dias.sql](sql/view_taxa_resolucao_5_dias.sql)
+
+5. **Ver logs rapidamente**:
+   ```bash
+   docker compose logs -f data_loader
+   ```
+   - Aguarde a mensagem: `ETL concluído com sucesso`.
+
+6. **Reset opcional (apagar dados e subir limpo)**:
+   ```bash
+   docker compose down -v && docker compose up -d
+   ```
+   - O ETL recria o Data Mart automaticamente.
+
+### Evidência de Execução
+- ETL concluído com sucesso:
+
+![ETL concluído com sucesso](assets/etl_concluido_sucesso.png)
+
+Coloque o arquivo da captura de tela em `assets/etl_concluido_sucesso.png` para visualizar no README.
+
 ### Métricas Principais
 - **Taxa de Variação Individual**: Evolução percentual do IDA de uma operadora.
 - **Benchmarking de Mercado**: Comparação da variação individual contra a média do setor.
@@ -90,57 +149,7 @@ graph TD
   - streamlit (interface web)
   - requests (requisições HTTP)
 
-## Execução
-
-A solução é totalmente conteinerizada via Docker. Siga os passos abaixo:
-
-1. **Pré-requisitos**:
-   - Docker e Docker Compose instalados.
-
-2. **Subir tudo (um comando)**:
-   ```bash
-   docker compose up -d --build
-   ```
-   - O parâmetro `--build` garante que qualquer alteração recente no código seja incorporada à imagem.
-   - As configurações usam valores padrão seguros (banco local), mas podem ser sobrescritas via `.env` se necessário.
-   - Após remover volumes (reset), os dados são recarregados automaticamente pelo ETL.
-
-3. **Acesso e Credenciais**:
-   - **Dashboard (Streamlit)**: [http://localhost:8501](http://localhost:8501)
-   - **Banco de Dados (PostgreSQL)**:
-     - **Host**: `localhost` (porta 5432)
-     - **Database**: `ida_datamart`
-     - **User**: `postgres`
-     - **Password**: `postgres`
-   - **Administração (PgAdmin)**:
-     - **Link**: [http://localhost:5050](http://localhost:5050)
-     - **Email**: `admin@admin.com`
-     - **Senha**: `admin`
-     - *Dica: Para conectar ao banco no PgAdmin, use o host `postgres` (nome do container).*
-   - **Conexão Externa (DBeaver/PowerBI)**:
-     - Utilize as mesmas credenciais do PostgreSQL acima. O host é `localhost` pois a porta 5432 está exposta.
-   
-   > **Nota para o Avaliador:** As credenciais são padrão (`postgres`/`postgres`) para facilitar a execução local do teste técnico. Em produção, utilizaríamos variáveis de ambiente seguras (Secrets).
-
-4. **Fluxo Automático**:
-   - O banco PostgreSQL é inicializado com o schema base.
-   - O container `data_loader` aguarda o banco estar `healthy`.
-   - Inicia o processamento dos arquivos presentes em `dados_ida/`.
-   - Executa as transformações SQL para carga da Fato e criação das Views:
-     - [01_transform_load.sql](sql/01_transform_load.sql)
-    - [view_taxa_resolucao_5_dias.sql](sql/view_taxa_resolucao_5_dias.sql)
-
-5. **Ver logs rapidamente**:
-   ```bash
-   docker compose logs -f data_loader
-   ```
-   - Aguarde a mensagem: `ETL concluído com sucesso`.
-
-6. **Reset opcional (apagar dados e subir limpo)**:
-   ```bash
-   docker compose down -v && docker compose up -d
-   ```
-   - O ETL recria o Data Mart automaticamente.
+ 
 
 ## Detalhes do ETL
 
