@@ -36,6 +36,7 @@ A solução é totalmente conteinerizada via Docker. Siga os passos abaixo:
      - **Email**: `admin@admin.com`
      - **Senha**: `admin`
      - *Dica: Para conectar ao banco no PgAdmin, use o host `postgres` (nome do container).*
+     - **Usuário do PostgreSQL (para registrar servidor)**: `postgres`
    - **Conexão Externa (DBeaver/PowerBI)**:
      - Utilize as mesmas credenciais do PostgreSQL acima. O host é `localhost` pois a porta 5432 está exposta.
    
