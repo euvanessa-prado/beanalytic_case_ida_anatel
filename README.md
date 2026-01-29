@@ -3,20 +3,10 @@
 ## Visão Geral
 Este projeto implementa uma solução de Engenharia de Dados ponta a ponta para a ingestão, tratamento e modelagem analítica dos dados do **Índice de Desempenho no Atendimento (IDA)** da Anatel. A solução automatiza a extração de arquivos OpenDocument (.ods), normaliza estruturas variadas através de processamento Python e consolida as métricas em um Data Mart PostgreSQL seguindo o modelo dimensional (Star Schema).
 
-## Ferramentas e Bibliotecas
-- Linguagem: Python 3.11.12
-- Banco: PostgreSQL 17.5
-- Orquestração: Docker Compose
-- Frontend: Streamlit
-- Visualização: Plotly
-- Bibliotecas Python:
-  - **polars** (processamento de dados de alta performance)
-  - pandas, odfpy (leitura de ODS)
-  - psycopg2-binary (PostgreSQL)
-  - python-dotenv (configuração)
-  - plotly (visualização de dados)
-  - streamlit (interface web)
-  - requests (requisições HTTP)
+### Métricas Principais
+- **Taxa de Variação Individual**: Evolução percentual do IDA de uma operadora.
+- **Benchmarking de Mercado**: Comparação da variação individual contra a média do setor.
+- **Métrica de Agilidade**: Taxa de resolvidas em até 5 dias úteis.
 
 ## Arquitetura da Solução
 
@@ -78,6 +68,28 @@ graph TD
 - **View Pivotada**: Implementação de SQL dinâmico para gerar relatórios de variação percentual mês a mês, permitindo comparação direta entre o desempenho individual das operadoras e a média do mercado.
 - **Dashboard Interativo**: Interface gráfica desenvolvida em **Streamlit** para visualização amigável dos dados, permitindo análises de tendência e heatmaps comparativos.
 
+## Estrutura do Projeto
+- `/sql`: Scripts de DDL, Transformação e Views.
+- `/src`: Módulos Python (Normalização e Carregamento).
+- `/dados_ida`: Repositório de arquivos brutos (.ods).
+- `docker-compose.yml`: Orquestração da infraestrutura.
+- `/assets`: Recursos gráficos do dashboard.
+
+## Ferramentas e Bibliotecas
+- Linguagem: Python 3.11.12
+- Banco: PostgreSQL 17.5
+- Orquestração: Docker Compose
+- Frontend: Streamlit
+- Visualização: Plotly
+- Bibliotecas Python:
+  - **polars** (processamento de dados de alta performance)
+  - pandas, odfpy (leitura de ODS)
+  - psycopg2-binary (PostgreSQL)
+  - python-dotenv (configuração)
+  - plotly (visualização de dados)
+  - streamlit (interface web)
+  - requests (requisições HTTP)
+
 ## Execução
 
 A solução é totalmente conteinerizada via Docker. Siga os passos abaixo:
@@ -85,14 +97,15 @@ A solução é totalmente conteinerizada via Docker. Siga os passos abaixo:
 1. **Pré-requisitos**:
    - Docker e Docker Compose instalados.
 
-2.46→2. **Subir tudo (um comando)**:
-47→   ```bash
-48→   docker compose up -d --build
-49→   ```
-50→   - O parâmetro `--build` garante que qualquer alteração recente no código seja incorporada à imagem.
-51→   - Após remover volumes (reset), os dados são recarregados automaticamente pelo ETL.
+2. **Subir tudo (um comando)**:
+   ```bash
+   docker compose up -d --build
+   ```
+   - O parâmetro `--build` garante que qualquer alteração recente no código seja incorporada à imagem.
+   - As configurações usam valores padrão seguros (banco local), mas podem ser sobrescritas via `.env` se necessário.
+   - Após remover volumes (reset), os dados são recarregados automaticamente pelo ETL.
 
-2.1. **Acesso e Credenciais**:
+3. **Acesso e Credenciais**:
    - **Dashboard**: [http://localhost:8501](http://localhost:8501)
    - **Banco de Dados (PostgreSQL)**:
      - **Host**: `localhost` (porta 5432)
@@ -102,75 +115,67 @@ A solução é totalmente conteinerizada via Docker. Siga os passos abaixo:
    
    > **Nota para o Avaliador:** As credenciais são padrão (`postgres`/`postgres`) para facilitar a execução local do teste técnico. Em produção, utilizaríamos variáveis de ambiente seguras (Secrets).
 
-3. **Fluxo Automático**:
+4. **Fluxo Automático**:
    - O banco PostgreSQL é inicializado com o schema base.
    - O container `data_loader` aguarda o banco estar `healthy`.
    - Inicia o processamento dos arquivos presentes em `dados_ida/`.
    - Executa as transformações SQL para carga da Fato e criação das Views:
-     - [01_transform_load.sql](file:///home/vanessa-aws/projeto_beAnalytic_copia/sql/01_transform_load.sql)
-    - [view_taxa_resolucao_5_dias.sql](file:///home/vanessa-aws/projeto_beAnalytic_copia/sql/view_taxa_resolucao_5_dias.sql)
+     - [01_transform_load.sql](sql/01_transform_load.sql)
+    - [view_taxa_resolucao_5_dias.sql](sql/view_taxa_resolucao_5_dias.sql)
 
-4. **Ver logs rapidamente**:
+5. **Ver logs rapidamente**:
    ```bash
    docker compose logs -f data_loader
    ```
    - Aguarde a mensagem: `ETL concluído com sucesso`.
 
-5. **Reset opcional (apagar dados e subir limpo)**:
+6. **Reset opcional (apagar dados e subir limpo)**:
    ```bash
    docker compose down -v && docker compose up -d
    ```
    - O ETL recria o Data Mart automaticamente.
 
-## Objetos de Avaliação (Prova Técnica)
-- O projeto roda integralmente com `docker compose up` (infra + ETL + dashboard).
-- SQL: organização, clareza e documentação usando `COMMENT ON`.
-- Python: organização, clareza, docstrings (pydoc) e uso de OOP.
-- Sem dependência de scripts externos; instruções mínimas e diretas.
+## 🧭 Detalhes do ETL
 
-## Estrutura do Projeto
-- `/sql`: Scripts de DDL, Transformação e Views.
-- `/src`: Módulos Python (Normalização e Carregamento).
-- `/dados_ida`: Repositório de arquivos brutos (.ods).
-- `docker-compose.yml`: Orquestração da infraestrutura.
-- `/assets`: Recursos gráficos do dashboard.
+### Passo a Passo
+- Ler ODS de `dados_ida/` e normalizar para long-format: [ods_processor.py](src/ods_processor.py)
+- Carregar em lote para `ida.staging_ida`: [staging_loader.py](src/staging_loader.py)
+- Consolidar dimensões e fato: [01_transform_load.sql](sql/01_transform_load.sql)
+- Construir view de variação pivoteada: [view_taxa_resolucao_5_dias.sql](sql/view_taxa_resolucao_5_dias.sql)
+- Exibir no dashboard (tema escuro, filtros na lateral, KPIs dinâmicos): [dashboard.py](src/dashboard.py)
 
-## Métricas Principais
-- **Taxa de Variação Individual**: Evolução percentual do IDA de uma operadora.
-- **Benchmarking de Mercado**: Comparação da variação individual contra a média do setor.
-- **Métrica de Agilidade**: Taxa de resolvidas em até 5 dias úteis.
-
-## 📜 Sequência dos Scripts (ETL)
+### 📜 Sequência dos Scripts
 1. Inicialização do schema e tabelas:
-   - [00_init_completo.sql](file:///home/vanessa-aws/projeto_beAnalytic_copia/sql/00_init_completo.sql)
+   - [00_init_completo.sql](sql/00_init_completo.sql)
 2. Transformação e carga para o modelo estrela:
-   - [01_transform_load.sql](file:///home/vanessa-aws/projeto_beAnalytic_copia/sql/01_transform_load.sql)
+   - [01_transform_load.sql](sql/01_transform_load.sql)
 3. Camada analítica (view com variação e pivô):
-   - [view_taxa_resolucao_5_dias.sql](file:///home/vanessa-aws/projeto_beAnalytic_copia/sql/view_taxa_resolucao_5_dias.sql)
+   - [view_taxa_resolucao_5_dias.sql](sql/view_taxa_resolucao_5_dias.sql)
 4. Orquestração e chamada dos scripts (Python):
-   - [carregar_dados_no_postgres.py](file:///home/vanessa-aws/projeto_beAnalytic_copia/carregar_dados_no_postgres.py#L42-L99)
+   - [carregar_dados_no_postgres.py](carregar_dados_no_postgres.py#L42-L99)
 
-## 🧭 Passo a Passo do ETL
-- Ler ODS de `dados_ida/` e normalizar para long-format: [ods_processor.py](file:///home/vanessa-aws/projeto_beAnalytic_copia/src/ods_processor.py)
-- Carregar em lote para `ida.staging_ida`: [staging_loader.py](file:///home/vanessa-aws/projeto_beAnalytic_copia/src/staging_loader.py)
-- Consolidar dimensões e fato: [01_transform_load.sql](file:///home/vanessa-aws/projeto_beAnalytic_copia/sql/01_transform_load.sql)
-- Construir view de variação pivoteada: [view_taxa_resolucao_5_dias.sql](file:///home/vanessa-aws/projeto_beAnalytic_copia/sql/view_taxa_resolucao_5_dias.sql)
-- Exibir no dashboard (tema escuro, filtros na lateral, KPIs dinâmicos): [dashboard.py](file:///home/vanessa-aws/projeto_beAnalytic_copia/src/dashboard.py)
+## � Validações e Troubleshooting
 
-## 🧪 Validações Úteis
+### Validações Úteis
 - Contagens rápidas (após carga):
   ```bash
   docker compose exec postgres psql -U postgres -d ida_datamart -c "SELECT COUNT(*) FROM ida.fato_ida;"
   docker compose exec postgres psql -U postgres -d ida_datamart -c "SELECT COUNT(*) FROM ida.view_taxa_resolucao_5_dias;"
   ```
 
-## 🛠️ Troubleshooting
+### Troubleshooting
 - Mensagem “Inicialização em andamento” no dashboard:
   - O ETL ainda está criando a view; aguarde “ETL completed successfully” nos logs e recarregue a página.
 - Reconstruir tudo do zero:
   - `docker compose down -v && docker compose up -d`
 - Logs do ETL:
   - `docker compose logs -f data_loader`
+
+## Objetos de Avaliação (Prova Técnica)
+- O projeto roda integralmente com `docker compose up` (infra + ETL + dashboard).
+- SQL: organização, clareza e documentação usando `COMMENT ON`.
+- Python: organização, clareza, docstrings (pydoc) e uso de OOP.
+- Sem dependência de scripts externos; instruções mínimas e diretas.
 
 ## ✅ Roadmap de Profissionalização
 - Opcional: integrar dbt para materializar dim/fato/view com testes e documentação.
