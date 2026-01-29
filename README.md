@@ -73,3 +73,4 @@ A solução é totalmente conteinerizada via Docker. Siga os passos abaixo:
 - **Taxa de Variação Individual**: Evolução percentual do IDA de uma operadora.
 - **Benchmarking de Mercado**: Comparação da variação individual contra a média do setor.
 - **Métrica de Agilidade**: Taxa de resolvidas em até 5 dias úteis.
+# beanalytic_case_ida_anatel
