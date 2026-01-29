@@ -89,3 +89,5 @@ BEGIN
 END $$;
 
 COMMENT ON VIEW view_taxa_resolucao_5_dias IS 'Visão Analítica Ouro: Tabela dinâmica pivotada que compara a variação percentual mensal da Taxa de Resolução em 5 dias (benchmark vs operadora).';
+COMMENT ON COLUMN view_taxa_resolucao_5_dias."Mes" IS 'Período de referência no formato YYYY-MM.';
+COMMENT ON COLUMN view_taxa_resolucao_5_dias."Taxa de Variação Média" IS 'Variação percentual média do mercado em relação ao mês anterior (Benchmark).';
