@@ -47,6 +47,7 @@ A solução é totalmente conteinerizada via Docker. Siga os passos abaixo:
    - O container `data_loader` aguarda o banco estar `healthy`.
    - Inicia o processamento dos arquivos presentes em `dados_ida/`.
    - Os arquivos `.ods` são baixados via script Python e carregados automaticamente no PostgreSQL (camada de staging).
+   - Fonte dos arquivos: Portal de dados da Anatel (dados.gov.br) – URL: https://dados.gov.br/dados/conjuntos-dados/indice-desempenho-atendimento
    - Script de extração: [baixar_arquivos_anatel.py](baixar_arquivos_anatel.py). Execução manual opcional:
      ```bash
      python baixar_arquivos_anatel.py
@@ -95,7 +96,9 @@ graph TD
 
     %% Source
     subgraph Origem ["Origem"]
+        Portal["Site da Anatel (dados.gov.br)"]:::source
         ODS[("Arquivos .ods (dados_ida/)")]:::source
+        Portal -->|baixar_arquivos_anatel.py| ODS
     end
 
     %% Ingestion Layer
