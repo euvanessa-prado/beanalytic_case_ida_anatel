@@ -58,7 +58,7 @@ A solução é totalmente conteinerizada via Docker. Siga os passos abaixo:
 ### Evidência de Execução
 - ETL concluído com sucesso:
 
-![ETL concluído com sucesso](assets/image.png)
+![ETL concluído com sucesso](assets/Screenshot_14.png)
 
 Caso prefira outro nome, ajuste o caminho da imagem conforme necessário em `assets/`.
 
