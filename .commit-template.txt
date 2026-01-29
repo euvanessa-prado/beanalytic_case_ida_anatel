@@ -1,0 +1,11 @@
+tipo(escopo): assunto curto no imperativo
+
+Descrição opcional em linha(s) adicional(is) com mais contexto do que foi alterado.
+
+Itens opcionais:
+- Motivo da mudança
+- Impacto esperado
+- Links (issue/tarefa), se houver
+
+Signed-off-by: Vanessa Prado
+Co-authored-by: Vanessa Prado
