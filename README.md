@@ -19,26 +19,26 @@ graph TD
     classDef viz fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px;
 
     %% Source
-    subgraph Origem ["📂 Origem"]
-        ODS[("📄 Arquivos .ods<br/>(dados_ida/)")]:::source
+    subgraph Origem ["Origem"]
+        ODS[("Arquivos .ods (dados_ida/)")]:::source
     end
 
     %% Ingestion Layer
-    subgraph Ingestao ["⚙️ Camada de Ingestão (Python)"]
-        Processor["🐍 ODS Processor<br/>(Pandas/Polars)"]:::process
-        Loader["🚚 Bulk Loader<br/>(psycopg2)"]:::process
+    subgraph Ingestao ["Camada de Ingestão (Python)"]
+        Processor["ODS Processor (Pandas/Polars)"]:::process
+        Loader["Bulk Loader (psycopg2)"]:::process
     end
 
     %% Data Layer
-    subgraph Dados ["🗄️ Camada de Dados (PostgreSQL)"]
-        Staging[("📥 Staging Area<br/>(Tabelas Brutas)")]:::db
-        StarSchema[("⭐ Star Schema<br/>(Dimensões & Fatos)")]:::db
-        Views[("📊 Views Analíticas<br/>(KPIs & Pivots)")]:::db
+    subgraph Dados ["Camada de Dados (PostgreSQL)"]
+        Staging[("Staging Area (Tabelas Brutas)")]:::db
+        StarSchema[("Star Schema (Dimensões & Fatos)")]:::db
+        Views[("Views Analíticas (KPIs & Pivots)")]:::db
     end
 
     %% Analytics Layer
-    subgraph Analitico ["📈 Camada Analítica"]
-        Streamlit["🖥️ Streamlit Dashboard<br/>(Visualização Interativa)"]:::viz
+    subgraph Analitico ["Camada Analítica"]
+        Streamlit["Streamlit Dashboard (Visualização Interativa)"]:::viz
     end
 
     %% Relationships
@@ -142,7 +142,7 @@ A solução é totalmente conteinerizada via Docker. Siga os passos abaixo:
    ```
    - O ETL recria o Data Mart automaticamente.
 
-## 🧭 Detalhes do ETL
+## Detalhes do ETL
 
 ### Passo a Passo
 - Ler ODS de `dados_ida/` e normalizar para long-format: [ods_processor.py](src/ods_processor.py)
@@ -151,7 +151,7 @@ A solução é totalmente conteinerizada via Docker. Siga os passos abaixo:
 - Construir view de variação pivoteada: [view_taxa_resolucao_5_dias.sql](sql/view_taxa_resolucao_5_dias.sql)
 - Exibir no dashboard (tema escuro, filtros na lateral, KPIs dinâmicos): [dashboard.py](src/dashboard.py)
 
-### 📜 Sequência dos Scripts
+### Sequência dos Scripts
 1. Inicialização do schema e tabelas:
    - [00_init_completo.sql](sql/00_init_completo.sql)
 2. Transformação e carga para o modelo estrela:
@@ -161,7 +161,7 @@ A solução é totalmente conteinerizada via Docker. Siga os passos abaixo:
 4. Orquestração e chamada dos scripts (Python):
    - [carregar_dados_no_postgres.py](carregar_dados_no_postgres.py#L42-L99)
 
-## � Validações e Troubleshooting
+## Validações e Troubleshooting
 
 ### Validações Úteis
 - Contagens rápidas (após carga):
@@ -184,7 +184,7 @@ A solução é totalmente conteinerizada via Docker. Siga os passos abaixo:
 - Python: organização, clareza, docstrings (pydoc) e uso de OOP.
 - Sem dependência de scripts externos; instruções mínimas e diretas.
 
-## ✅ Roadmap de Profissionalização
+## Roadmap de Profissionalização
 - Opcional: integrar dbt para materializar dim/fato/view com testes e documentação.
 - Adicionar CI com lint/testes de import (GitHub Actions).
 
