@@ -1,6 +1,6 @@
 -- ========================================================
 -- Schema IDA - Data Mart Core
--- Description: Core tables for Anatel Performance Indicator.
+-- Descrição: Tabelas principais para o Indicador de Desempenho Anatel.
 -- ========================================================
 
 CREATE SCHEMA IF NOT EXISTS ida;
@@ -64,8 +64,8 @@ CREATE TABLE IF NOT EXISTS staging_ida (
     data_carga TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-COMMENT ON TABLE staging_ida IS 'Camada de staging para ingestão raw dos arquivos ODS.';
+COMMENT ON TABLE staging_ida IS 'Camada de staging para ingestão bruta dos arquivos ODS.';
 
--- Indices
+-- Índices
 CREATE INDEX IF NOT EXISTS idx_fato_lookup ON fato_ida(id_tempo, id_grupo, id_servico);
 CREATE INDEX IF NOT EXISTS idx_stg_comp ON staging_ida(ano_mes, grupo_economico);

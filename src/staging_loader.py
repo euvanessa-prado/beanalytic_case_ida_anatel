@@ -1,7 +1,7 @@
-"""High-performance loader for the staging layer (PostgreSQL).
+"""Carregador de alta performance para a camada de staging (PostgreSQL).
 
-Provides a thin abstraction over psycopg2 to batch-insert normalized rows
-into ida.staging_ida using execute_values for speed.
+Fornece uma abstração sobre o psycopg2 para inserir linhas normalizadas em lote
+na tabela ida.staging_ida usando execute_values para velocidade.
 """
 
 import logging
@@ -12,18 +12,18 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 class StagingManager:
-    """Manager for bulk-loading normalized rows into ida.staging_ida."""
+    """Gerenciador de carga em lote para a tabela ida.staging_ida."""
 
     def __init__(self, db_config: dict):
-        """Initialize with database credentials (psycopg2)."""
+        """Inicializa com credenciais do banco de dados (psycopg2)."""
         self.db_config = db_config
 
     def bulk_load(self, df: pd.DataFrame, truncate: bool = True):
-        """Batch insert normalized data into staging_ida.
+        """Insere dados normalizados em lote na staging_ida.
         
         Args:
-            df: DataFrame containing normalized data.
-            truncate: Whether to clear the staging table before load.
+            df: DataFrame contendo os dados normalizados.
+            truncate: Se True, limpa a tabela de staging antes da carga.
         """
         if df.empty:
             return
@@ -40,4 +40,4 @@ class StagingManager:
                 execute_values(cur, sql, data)
             conn.commit()
             
-        logger.info(f"Loaded {len(df)} records into staging layer.")
+        logger.info(f"Carregados {len(df)} registros na camada de staging.")

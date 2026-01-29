@@ -3,8 +3,6 @@
 ## Visão Geral
 Este projeto implementa uma solução de Engenharia de Dados ponta a ponta para a ingestão, tratamento e modelagem analítica dos dados do **Índice de Desempenho no Atendimento (IDA)** da Anatel. A solução automatiza a extração de arquivos OpenDocument (.ods), normaliza estruturas variadas através de processamento Python e consolida as métricas em um Data Mart PostgreSQL seguindo o modelo dimensional (Star Schema).
 
-## Arquitetura da Solução
-
 ## Ferramentas e Bibliotecas
 - Linguagem: Python 3.11.12
 - Banco: PostgreSQL 17.5
@@ -18,6 +16,8 @@ Este projeto implementa uma solução de Engenharia de Dados ponta a ponta para 
   - requests, Playwright (extração opcional)
   - Pillow (tratamento de imagem)
   - matplotlib (apoio visual, opcional)
+
+## Arquitetura da Solução
 
 ### 1. Camada de Ingestão (Python)
 - **ODS Processor**: Motor em Python que utiliza `pandas` e `odfpy` para ler planilhas brutas.
@@ -54,15 +54,15 @@ A solução é totalmente conteinerizada via Docker. Siga os passos abaixo:
    - O banco PostgreSQL é inicializado com o schema base.
    - O container `data_loader` aguarda o banco estar `healthy`.
    - Inicia o processamento dos arquivos presentes em `dados_ida/`.
-- Executa as transformações SQL para carga da Fato e criação das Views:
-  - [01_transform_load.sql](file:///home/vanessa-aws/projeto_beAnalytic_copia/sql/01_transform_load.sql)
-  - [02_view_pivotada.sql](file:///home/vanessa-aws/projeto_beAnalytic_copia/sql/02_view_pivotada.sql)
+   - Executa as transformações SQL para carga da Fato e criação das Views:
+     - [01_transform_load.sql](file:///home/vanessa-aws/projeto_beAnalytic_copia/sql/01_transform_load.sql)
+     - [02_view_pivotada.sql](file:///home/vanessa-aws/projeto_beAnalytic_copia/sql/02_view_pivotada.sql)
 
 4. **Ver logs rapidamente**:
    ```bash
    docker compose logs -f data_loader
    ```
-   - Aguarde a mensagem: `ETL completed successfully`.
+   - Aguarde a mensagem: `ETL concluído com sucesso`.
 
 5. **Reset opcional (apagar dados e subir limpo)**:
    ```bash
@@ -114,7 +114,7 @@ A solução é totalmente conteinerizada via Docker. Siga os passos abaixo:
 
 ## 🛠️ Troubleshooting
 - Mensagem “Inicialização em andamento” no dashboard:
-  - O ETL ainda está criando a view; aguarde “ETL completed successfully” e recarregue a página.
+  - O ETL ainda está criando a view; aguarde “ETL completed successfully” nos logs e recarregue a página.
 - Reconstruir tudo do zero:
   - `docker compose down -v && docker compose up -d`
 - Logs do ETL:

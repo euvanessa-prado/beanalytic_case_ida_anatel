@@ -1,8 +1,8 @@
-"""ODS processing and normalization utilities for the Anatel IDA dataset.
+"""Utilitários de processamento e normalização ODS para o conjunto de dados IDA da Anatel.
 
-This module provides classes to parse heterogeneous ODS spreadsheets into a
-normalized long-format DataFrame, handling month/year extraction, numeric
-conversion and deduplication. Designed for batch processing and ETL pipelines.
+Este módulo fornece classes para processar planilhas ODS heterogêneas, convertendo-as
+em DataFrames normalizados no formato longo (long-format), lidando com extração de
+mês/ano, conversão numérica e deduplicação. Projetado para processamento em lote e pipelines ETL.
 """
 
 import pandas as pd
@@ -13,13 +13,13 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 class DataNormalizer:
-    """Normalize wide-format ODS tables into a long-format DataFrame.
+    """Normaliza tabelas ODS (formato wide) para DataFrame (formato long).
     
-    Responsibilities:
-    - Locate header rows and derive column names
-    - Identify ID columns vs. period columns
-    - Melt to long format and parse period into (ano, mes)
-    - Enforce numeric conversion and optional year filtering
+    Responsabilidades:
+    - Localizar linhas de cabeçalho e derivar nomes de colunas.
+    - Identificar colunas de identificação vs. colunas de período.
+    - Realizar 'melt' para formato longo e processar período em (ano, mes).
+    - Aplicar conversão numérica e filtragem opcional por ano.
     """
     
     MONTH_MAP = {
@@ -28,17 +28,17 @@ class DataNormalizer:
     }
 
     def __init__(self, target_year=None):
-        """Initialize with optional target filtering year."""
+        """Inicializa com ano alvo opcional para filtragem."""
         self.target_year = target_year
 
     def normalize(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Convert a raw ODS DataFrame to normalized schema.
+        """Converte um DataFrame bruto ODS para o esquema normalizado.
         
         Args:
-            df: DataFrame read from an ODS worksheet.
+            df: DataFrame lido de uma planilha ODS.
         
         Returns:
-            DataFrame with columns:
+            DataFrame com colunas:
             - grupo_economico, variavel, periodo, valor, ano, mes
         """
         start_row = -1
@@ -54,40 +54,40 @@ class DataNormalizer:
         df_clean = df.iloc[start_row:].copy()
         df_clean.columns = headers
         
-        # ID and Period identification
+        # Identificação de ID e Período
         id_cols = [headers[0], headers[1]] 
         period_cols = [c for c in headers if re.search(r'\d{4}', c) or any(m in c.upper() for m in self.MONTH_MAP)]
         
         df_long = pd.melt(df_clean, id_vars=id_cols, value_vars=period_cols, var_name='periodo', value_name='valor')
         df_long.columns = ['grupo_economico', 'variavel', 'periodo', 'valor']
 
-        # Date parsing and Numeric conversion
+        # Parsing de data e Conversão numérica
         df_long[['ano', 'mes']] = df_long['periodo'].apply(lambda x: pd.Series(self._parse_date(x)))
         df_long['valor'] = pd.to_numeric(df_long['valor'], errors='coerce')
         df_long = df_long.dropna(subset=['valor'])
         
-        # Rigorous filtering by file year
+        # Filtragem rigorosa por ano do arquivo
         if self.target_year:
             df_long = df_long[df_long['ano'] == self.target_year]
             
         return df_long.drop_duplicates(subset=['ano', 'mes', 'grupo_economico', 'variavel'])
 
     def _parse_date(self, val) -> tuple:
-        """Extract (ano, mes) from multiple period formats.
+        """Extrai (ano, mes) de múltiplos formatos de período.
         
-        Supports date objects, 'YYYY-MM', and 'MON/YYYY' patterns.
-        Falls back to target_year or 2015 when parsing fails.
+        Suporta objetos date, padrões 'YYYY-MM' e 'MON/YYYY'.
+        Retorna (target_year, 1) ou (2015, 1) em caso de falha no parsing.
         """
         if hasattr(val, 'year'): 
             return int(val.year), int(val.month)
             
         txt = str(val).upper()
-        # Format: YYYY-MM
+        # Formato: YYYY-MM
         m = re.search(r'(\d{4})[.-](\d{1,2})', txt)
         if m: 
             return int(m.group(1)), int(m.group(2))
         
-        # Format: MONTH/YYYY
+        # Formato: MES/YYYY
         m = re.search(r'([A-Z]{3})/(\d{4})', txt)
         if m: 
             return int(m.group(2)), self.MONTH_MAP.get(m.group(1), 1)
@@ -95,14 +95,14 @@ class DataNormalizer:
         return self.target_year or 2015, 1
 
 class ODSProcessor:
-    """Batch ODS processor that concatenates normalized datasets."""
+    """Processador em lote de ODS que concatena datasets normalizados."""
     
     def __init__(self, data_path: str):
-        """Initialize with directory path containing ODS files."""
+        """Inicializa com o caminho do diretório contendo arquivos ODS."""
         self.path = Path(data_path)
 
     def process_all(self) -> pd.DataFrame:
-        """Read all ODS files and return a single concatenated DataFrame."""
+        """Lê todos os arquivos ODS e retorna um DataFrame único concatenado."""
         files = list(self.path.glob('*.ods'))
         results = []
 
