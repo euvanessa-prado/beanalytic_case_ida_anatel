@@ -62,6 +62,27 @@ A solução é totalmente conteinerizada via Docker. Siga os passos abaixo:
    ```
    - O ETL recria o Data Mart automaticamente.
 
+### Baixar e Carregar Arquivos (.ods)
+- Onde colocar: adicione os arquivos `.ods` na pasta [`dados_ida/`](file:///home/vanessa-aws/projeto_beAnalytic_copia/dados_ida).
+- Como atualizar os dados:
+  - Copie os novos `.ods` para `dados_ida/`.
+  - Reinicie o ETL para reprocessar:
+    ```bash
+    docker compose restart data_loader
+    ```
+  - Alternativa (reprocesso completo, recria banco e view):
+    ```bash
+    docker compose down -v && docker compose up -d --build
+    ```
+- Verificar progresso do ETL:
+  ```bash
+  docker compose logs -f data_loader
+  ```
+- Execução manual (opcional):
+  ```bash
+  docker compose exec data_loader python carregar_dados_no_postgres.py
+  ```
+
 ### Evidência de Execução
 - ETL concluído com sucesso:
 
